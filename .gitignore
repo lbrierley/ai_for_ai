@@ -1,6 +1,10 @@
 # History files
 .Rhistory
 .Rapp.history
+*.Rproj
+
+# Data not suitable for upload
+S3/data
 
 # Session Data files
 .RData
@@ -47,3 +51,5 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+S3/scripts/process_YX_data_LB_17_1_23.R
+S3/scripts/extract_GenBank_flu.R
