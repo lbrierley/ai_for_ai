@@ -2,106 +2,41 @@
 # Define functions #
 ####################
 
-# Set up accessible colour blindness palette
-cbbPalette <- c("#E69F00", "#F0E442", "#56B4E9", "#009E73", "#D55E00")
-cbbPalette_full <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-cbbPalette_bw <- c("#FFFFFF", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-cbbPalette_ordered <- c("#D55E00", "#E69F00", "#F0E442", "#009E73", "#56B4E9", "#0072B2", "#CC79A7", "#999999")
-cbbPalette_ordered_bw <- c("#D55E00", "#E69F00", "#F0E442", "#009E73", "#56B4E9", "#0072B2", "#CC79A7", "#b9b9b9")
-
-Seq_searcher <- function(x){
-  Seq_result <- entrez_search(db="nuccore", term=paste0('txid', x, '[Organism:noexp] AND ', searchterm),
-                              retmax=10000)
-}
-
-Seq_summary <- function(x){
+calc_composition_counts <- function(x, codonpairs = FALSE){
   
-  query_index <- split(seq(1,length(x)), ceiling(seq_along(seq(1,length(x)))/300))
-  Seq_result <- vector("list", length(query_index))
+  df <- cbind(data.frame(
+    fastahead = x %>% names(),
+    enc = x %>% codonTable() %>% ENC(stop.rm = FALSE), # Calculate Effective Number of Codons (including STOP codons)
+    x %>% letterFrequency("GC", as.prob = TRUE) * 100 %>% as.vector(), # Calculate % GC content
+    x %>% letterFrequency(c("A", "C", "G", "T")), # Nucleotide counts
+    x %>% dinucleotideFrequency(), # Dinucleotide counts
+    x %>%
+      DNAStringSet(start = 1) %>%
+      dinucleotideFrequency(step = 3) %>%
+      as.data.frame() %>%
+      rename_all(., ~ paste0(., "_p1")), # Dinucleotide counts between positions 1-2 only
+    x %>%
+      DNAStringSet(start = 2) %>%
+      dinucleotideFrequency(step = 3) %>%
+      as.data.frame() %>%
+      rename_all(., ~ paste0(., "_p2")), # Dinucleotide counts between positions 2-3 only
+    x %>%
+      DNAStringSet(start = 3) %>%
+      dinucleotideFrequency(step = 3) %>%
+      as.data.frame() %>%
+      rename_all(., ~ paste0(., "_p3")), # Dinucleotide counts between positions 3-1 only
+    x %>%
+      codonTable() %>%
+      codonCounts() # Codon counts
+  )) %>% rename_at(vars(G.C), ~"GC_content")
   
-  for (i in 1:length(query_index)) {
-    Seq_result[[i]] <- entrez_summary(db = "nuccore",id = x[unlist(query_index[i])])
-    Sys.sleep(5)
+  if(codonpairs == TRUE){
+    df <- cbind(df, x %>% oligonucleotideFrequency(6, step=3))
   }
   
-  if(length(x) == 1){
-    return(Seq_result)
-  } else {
-    return(Seq_result %>% flatten %>% unname)
-  }
-}
-
-Seq_FASTA <- function(x){
-  
-  query_index <- split(seq(1,length(x)), ceiling(seq_along(seq(1,length(x)))/300))
-  Seq_result <- vector("list", length(query_index))
-  
-  for (i in 1:length(query_index)) {
-    Seq_result[[i]] <- entrez_fetch(db = "nuccore",id = x[unlist(query_index[i])], rettype="fasta_cds_na")
-    Sys.sleep(5)
-  }
-  return(flatten_chr(Seq_result) %>% paste(collapse=""))
-}
-
-metadata_title_cleaner <- function(x){
-  x %>%
-    as.character %>%
-    strsplit(., "(?<=.)(?= cds)", perl=TRUE) %>%                # split title into chunks based on "cds" separator
-    lapply(function(x) x[grepl("spike|surface gly|s gly|s prot|S gene|peplom|(S1)| S1 |(S2)| S2 |subunit 1|subunit 2|1 subunit|2 subunit", x, ignore.case = TRUE)] %>%       # search for the chunk describing the S protein
-             word(., -1))                                       # save whether partial or complete (which should be last word in string)
-}
-
-genomic_pca <- function(df, vars, outcome, choices = 1:2){
-  
-  df_name <- deparse(substitute(df))
-  
-  df %<>% as.data.frame
-  
-  # Merge in relevant outcome column if it doesn't already exist
-  if (!(outcome %in% names(df))){
-    df %<>% left_join(allcov_df %>% select(childtaxa_id, !! sym(outcome)),
-                      by = c("taxid" = "childtaxa_id"))
-  }
-  
-  # Create relevant principal components analysis
-  
-  if (vars == "dinucs"){
-    pca <- df %>% select(matches("^[A|C|G|T][A|C|G|T]_p[1|2|3]_Bias$")) %>% prcomp
-  } else if (vars == "codons"){
-    pca <- df %>% select(matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$")) %>% prcomp
-  } else if (vars == "codons_nostop"){
-    pca <- df %>% select(matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$")) %>% select(-c(TAG_Bias, TAA_Bias, TGA_Bias)) %>% prcomp
-  } else if (vars == "aa"){
-    pca <- df %>% select(matches("^.*_aa_Bias$")) %>% prcomp
-  } else {
-    stop("no valid variables selected")
-  }
-  
-  # Write summary
-  sink(paste0("figs\\pcasumm_",df_name,"_",vars,".txt"))
-  summary(pca)
-  sink()
-  
-  # Screeplot
-  ggscreeplot(pca) +
-    geom_hline(yintercept=1/length(pca$sdev), alpha = 0.5, color="dodgerblue", lty="dashed", size=1.5) +
-    theme_bw() +
-    ggsave(paste0("figs\\scree_",df_name,"_",vars,".png"), width = 8, height = 5)
-  
-  # Biplot
-  g <- ggbiplot(pca,
-                choices = choices,
-                groups = df[, outcome],
-                ellipse = TRUE,
-                alpha = 0.4,
-                varname.abbrev=TRUE) +
-    geom_point(alpha=0, aes(fill= df[, outcome], label=df$childtaxa_name)) +
-    theme(legend.position='none') +
-    theme_bw()
-  ggplotly(g) %>% hide_legend()
+  return(df)
   
 }
-
 
 calc_composition_bias <- function(df){
   
@@ -248,6 +183,113 @@ calc_composition_bias <- function(df){
   
   return(df)
 }
+
+####################
+# Define functions - old and unused, if you use them put them in the above
+####################
+
+# Set up accessible colour blindness palette
+cbbPalette <- c("#E69F00", "#F0E442", "#56B4E9", "#009E73", "#D55E00")
+cbbPalette_full <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+cbbPalette_bw <- c("#FFFFFF", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+cbbPalette_ordered <- c("#D55E00", "#E69F00", "#F0E442", "#009E73", "#56B4E9", "#0072B2", "#CC79A7", "#999999")
+cbbPalette_ordered_bw <- c("#D55E00", "#E69F00", "#F0E442", "#009E73", "#56B4E9", "#0072B2", "#CC79A7", "#b9b9b9")
+
+Seq_searcher <- function(x){
+  Seq_result <- entrez_search(db="nuccore", term=paste0('txid', x, '[Organism:noexp] AND ', searchterm),
+                              retmax=10000)
+}
+
+Seq_summary <- function(x){
+  
+  query_index <- split(seq(1,length(x)), ceiling(seq_along(seq(1,length(x)))/300))
+  Seq_result <- vector("list", length(query_index))
+  
+  for (i in 1:length(query_index)) {
+    Seq_result[[i]] <- entrez_summary(db = "nuccore",id = x[unlist(query_index[i])])
+    Sys.sleep(5)
+  }
+  
+  if(length(x) == 1){
+    return(Seq_result)
+  } else {
+    return(Seq_result %>% flatten %>% unname)
+  }
+}
+
+Seq_FASTA <- function(x){
+  
+  query_index <- split(seq(1,length(x)), ceiling(seq_along(seq(1,length(x)))/300))
+  Seq_result <- vector("list", length(query_index))
+  
+  for (i in 1:length(query_index)) {
+    Seq_result[[i]] <- entrez_fetch(db = "nuccore",id = x[unlist(query_index[i])], rettype="fasta_cds_na")
+    Sys.sleep(5)
+  }
+  return(flatten_chr(Seq_result) %>% paste(collapse=""))
+}
+
+metadata_title_cleaner <- function(x){
+  x %>%
+    as.character %>%
+    strsplit(., "(?<=.)(?= cds)", perl=TRUE) %>%                # split title into chunks based on "cds" separator
+    lapply(function(x) x[grepl("spike|surface gly|s gly|s prot|S gene|peplom|(S1)| S1 |(S2)| S2 |subunit 1|subunit 2|1 subunit|2 subunit", x, ignore.case = TRUE)] %>%       # search for the chunk describing the S protein
+             word(., -1))                                       # save whether partial or complete (which should be last word in string)
+}
+
+genomic_pca <- function(df, vars, outcome, choices = 1:2){
+  
+  df_name <- deparse(substitute(df))
+  
+  df %<>% as.data.frame
+  
+  # Merge in relevant outcome column if it doesn't already exist
+  if (!(outcome %in% names(df))){
+    df %<>% left_join(allcov_df %>% select(childtaxa_id, !! sym(outcome)),
+                      by = c("taxid" = "childtaxa_id"))
+  }
+  
+  # Create relevant principal components analysis
+  
+  if (vars == "dinucs"){
+    pca <- df %>% select(matches("^[A|C|G|T][A|C|G|T]_p[1|2|3]_Bias$")) %>% prcomp
+  } else if (vars == "codons"){
+    pca <- df %>% select(matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$")) %>% prcomp
+  } else if (vars == "codons_nostop"){
+    pca <- df %>% select(matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$")) %>% select(-c(TAG_Bias, TAA_Bias, TGA_Bias)) %>% prcomp
+  } else if (vars == "aa"){
+    pca <- df %>% select(matches("^.*_aa_Bias$")) %>% prcomp
+  } else {
+    stop("no valid variables selected")
+  }
+  
+  # Write summary
+  sink(paste0("figs\\pcasumm_",df_name,"_",vars,".txt"))
+  summary(pca)
+  sink()
+  
+  # Screeplot
+  ggscreeplot(pca) +
+    geom_hline(yintercept=1/length(pca$sdev), alpha = 0.5, color="dodgerblue", lty="dashed", size=1.5) +
+    theme_bw() +
+    ggsave(paste0("figs\\scree_",df_name,"_",vars,".png"), width = 8, height = 5)
+  
+  # Biplot
+  g <- ggbiplot(pca,
+                choices = choices,
+                groups = df[, outcome],
+                ellipse = TRUE,
+                alpha = 0.4,
+                varname.abbrev=TRUE) +
+    geom_point(alpha=0, aes(fill= df[, outcome], label=df$childtaxa_name)) +
+    theme(legend.position='none') +
+    theme_bw()
+  ggplotly(g) %>% hide_legend()
+  
+}
+
+
+
 
 
 matrixPlot <- function(df, outcome_name) {
