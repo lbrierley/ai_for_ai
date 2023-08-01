@@ -5,6 +5,18 @@
 
 # Data not suitable for upload
 S3/data
+S2/data
+
+# Temporary folder/files
+tmp/
+
+# Defunct files
+*DEFUNCT.R
+
+# Other do not upload
+S3/scripts/mmseqs-win64
+S3/scripts/process_YX_data_LB_17_1_23.R
+S3/scripts/extract_GenBank_flu.R
 
 # Session Data files
 .RData
@@ -51,5 +63,4 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
-S3/scripts/process_YX_data_LB_17_1_23.R
-S3/scripts/extract_GenBank_flu.R
+

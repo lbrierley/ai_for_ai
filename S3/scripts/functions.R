@@ -2,10 +2,144 @@
 # Define functions #
 ####################
 
+process_NCBI_DNA <- function(x, label, type){
+  df <- data.frame(title = x %>% names(), 
+                   length = x %>% width()) 
+  
+  if (type == "nuc"){
+    df %<>% tidyr::separate(title, sep = "\\|", into = c("title", "subtype", "date", "accession", "gene", "segment"), extra = "drop")
+  } else if (type == "cds"){
+    df %<>% tidyr::separate(title, sep = "\\|", into = c("title", "subtype", "date", "cds_id", "gene", "segment", "gb", "accession"), extra = "drop")
+  } else {
+    stop("invalid type")
+  }
+  
+  df %<>%
+    mutate(
+      accession = gsub("\\:.*","",accession),
+      gene = str_sub(str_sub(gene, 4, -1), 1, -2),
+      label = label,
+      src = "NCBI",
+      subtype = case_when(
+        subtype == "H3N6,H3" ~ "H3N6",
+        subtype == "H6N1,H6" ~ "H6N1",
+        subtype == "H01N2" ~ "H1N2",
+        TRUE ~ toupper(subtype)
+      ),
+      title = case_when(
+        title == "Influenza A virus" ~ paste0(title, subtype),
+        title %in% c(
+          "A/mallard/Italy/3401/2005",
+          "A/Avian/Viet Nam/Egg/2014",
+          "A/Avian/Viet Nam/Egg/2017",
+          "A/chicken/China/embryonated chicken eggs/2014",
+          "A/chicken/MUWRP-Uganda/853/2018",
+          "A/wild duck/South Korea/KNU2018-26/2020"
+        ) ~ paste0(title, date),
+        TRUE ~ title),
+      title = gsub(" ", "_", gsub("\\.[0-9]\\.A", "", title)),
+      gid = paste0(title, str_sub(accession, 0, -8)), # Create genome id that can be used for both NCBI and GISAID data
+      fastahead = x %>% names() %>% gsub(" ", "_", .),
+      string = x %>% as.character(use.names=FALSE),
+    ) %>% 
+    select(-any_of("gb")) %>%
+    filter(gene != "N40") %>%
+    relocate(fastahead, string, .after = last_col())
+  
+  if (type == "cds"){
+    df %<>%
+      mutate(gene = case_when(
+        segment == 1 & grepl("\\|PB2\\|", fastahead) ~ "PB2",                  # Attempt to assign based on fasta header first
+        segment == 2 & grepl("\\|PB1-F2\\|", fastahead)  ~ "PB1-F2",                              
+        segment == 2 & grepl("\\|PB1\\|", fastahead) ~ "PB1",                                                  
+        segment == 3 & grepl("\\|PA-X\\|", fastahead) ~ "PA-X",         
+        segment == 3 & grepl("\\|PA\\|", fastahead) ~ "PA",                                                  
+        segment == 4 & grepl("\\|HA\\|", fastahead) ~ "HA",
+        segment == 5 & grepl("\\|NP\\|", fastahead) ~ "NP",
+        segment == 6 & grepl("\\|NA\\|", fastahead) ~ "NA",
+        segment == 7 & grepl("\\|M2\\|", fastahead) ~ "M2",           
+        segment == 7 & grepl("\\|M1\\|", fastahead) ~ "M1",                                                   
+        segment == 8 & grepl("\\|NS2\\|", fastahead) ~ "NS2",          
+        segment == 8 & grepl("\\|NS1\\|", fastahead) ~ "NS1" ,      
+        segment == 1 ~ "PB2",
+        segment == 2 & length < 500  ~ "PB1-F2",                               # Else distinguish PB1-F2 based on size
+        segment == 2 ~ "PB1",                                                  # Else set to PB1
+        segment == 3 & grepl("(gb|.*\\:.*\\,).*)",fastahead) ~ "PA-X",         # Distinguish PA-X based on joining ORFs
+        segment == 3 ~ "PA",                                                   # Else set to PA
+        segment == 4 ~ "HA",
+        segment == 5 ~ "NP",
+        segment == 6 ~ "NA",
+        segment == 7 & grepl("(gb|.*\\:.*\\,).*)",fastahead) ~ "M2",           # Distinguish M2 based on joining ORFs
+        segment == 7 ~ "M1",                                                   # Else set to M1
+        segment == 8 & grepl("(gb|.*\\:.*\\,).*)",fastahead) ~ "NS2",          # Distinguish NS2 based on joining ORFs
+        segment == 8 ~ "NS1"                                                   # Else set to NS1
+      )) %>%
+      filter(!(grepl("\\|N40\\||\\|M42\\|", fastahead)))
+  }
+  
+  return(df)
+}
+
+process_GISAID_DNA <- function(x, label, type){
+  df <- data.frame(title = x %>% names(), 
+                   length = x %>% width()) 
+  
+  if (type == "nuc"){
+    df %<>% tidyr::separate(title, sep = "\\|", into = c("title", "UID", "subtype", "null", "date", "INSDC", "accession", "title2", "gene", "segment"), extra = "drop")
+  } else {
+    stop("invalid type")
+  }
+  
+  df %<>%
+    mutate(
+      accession = ifelse(accession %in% "", NA, accession),
+      segment = case_when(
+        gene == "PB2" ~ "1",
+        gene == "PB1" ~ "2",
+        gene == "PA" ~ "3",
+        gene == "HA" ~ "4",
+        gene == "NP" ~ "5",
+        gene == "NA" ~ "6",
+        gene == "MP" ~ "7",
+        gene == "NS" ~ "8"
+      ),
+      subtype = str_sub(subtype, 5, -1),
+      label = label,
+      src = "GISAID",
+      title = gsub(" ", "_", title),
+      gid = UID,
+      fastahead = x %>% names() %>% gsub(" ", "_", .),
+      string = x %>% as.character(use.names=FALSE)
+    ) %>%
+    select(-any_of(c("null", "title2")))
+  
+  return(df)
+}
+
+bind_ORF <- function(x) {
+  
+  df <- findORFs(x, startCodon="ATG") %>%
+    as.data.frame() 
+  
+  if(nrow(df) == 0){
+    
+    df <- data.frame(start = 0, end = 0) # Set start/end to zero if no valid open reading frames found
+    
+  } else {
+    
+    df <- df %>% 
+      arrange(-width) %>%
+      slice(1) %>%
+      select(start, end)
+  }   
+  
+  return(df)
+}
+
 calc_composition_counts <- function(x, codonpairs = FALSE){
   
   df <- cbind(data.frame(
-    fastahead = x %>% names(),
+    cds_id = x %>% names(),
     enc = x %>% codonTable() %>% ENC(stop.rm = FALSE), # Calculate Effective Number of Codons (including STOP codons)
     x %>% letterFrequency("GC", as.prob = TRUE) * 100 %>% as.vector(), # Calculate % GC content
     x %>% letterFrequency(c("A", "C", "G", "T")), # Nucleotide counts
@@ -38,7 +172,23 @@ calc_composition_counts <- function(x, codonpairs = FALSE){
   
 }
 
-calc_composition_bias <- function(df){
+calc_kmer_counts <- function(x, k, overlap = TRUE, rescale = TRUE){
+  
+  df <- cbind(data.frame(
+    cds_id = x %>% names(),
+    x %>% oligonucleotideFrequency(k, step=ifelse(overlap == TRUE, 1, k))
+  )) 
+  
+  if(rescale == TRUE){
+    df %<>%
+      mutate(across(-1)/rowSums(across(-1)))
+  }
+  
+  return(df)
+  
+}
+
+calc_composition_bias <- function(df, codonpairs = FALSE){
   
   # Calculate total nucleotides
   df %<>% mutate(length = A+C+G+T)
@@ -58,16 +208,6 @@ calc_composition_bias <- function(df){
   
   # Calculate nucleotide biases
   df %<>% mutate_at(vars(matches("^[A|C|G|T]$")), .funs = list(Bias = ~./length))
-  
-  
-  # # MUST BE A DPLYR MUTATE AT WAY OF DOING THIS
-  # cocoputs_dinucs %>%
-  #   mutate_at(vars(matches("^[A|T|G|C|U]p[A|T|G|C|U]$")), funs(
-  #     (./X..Dinucleotides)/ # Numerator, Nxy/Dtot
-  #       (!!parse_quosure(deparse(substitute(.)) %>% substr(1,1))/X..Nucleotides * # Denominator, Nx/Ntot, extracting nucleotide X from col name
-  #          !!parse_quosure(deparse(substitute(.)) %>% substr(3,3))/X..Nucleotides) # Denominator, Ny/Ntot, extracting nucleotide Y from col name
-  #   ))
-  # # Should work but object v not found? Comes back to nonstandard evaluation, a topic that seems tricky to get a full handle on
   
   # Calculate dinucleotide biases
   for (i in 1:ncol(df)) {
@@ -139,50 +279,57 @@ calc_composition_bias <- function(df){
       df[, paste0(unique(codon_ref$aminoacid)[i], "_aa")]/df$n_codons
   }
   
+  if(codonpairs == TRUE){
+    
+    # Calc codon pair bias as log (freq codon pair)/((freq codon A*freq codon B/freq aacid A*freq aacid B) * freq aacid pair) following Coleman et al. 2008
+    
+    # Calculate codon pair biases
+    for (i in 1:nrow(codon_ref)) {
+      for (j in 1:nrow(codon_ref)) {
+        
+        # Calculate frequency of pairs of corresponding amino acids for codons i and j
+        aminoacidpaircounts <- df %>%
+          select(do.call(paste0,
+                         expand.grid(codon_ref %>% subset(aminoacid == codon_ref$aminoacid[i]) %>% .$codon,
+                                     codon_ref %>% subset(aminoacid == codon_ref$aminoacid[j]) %>% .$codon))) %>% rowSums()
+        
+        df[, paste0(codon_ref$codon[i], "_", codon_ref$codon[j], "_Bias")] <-
+          log(
+            df[, paste0(codon_ref$codon[i], codon_ref$codon[j])]/
+              (((df[, codon_ref$codon[i]]*df[, codon_ref$codon[j]])/
+                  (df[, paste0(codon_ref$aminoacid[i], "_aa")]*df[, paste0(codon_ref$aminoacid[j], "_aa")]))*
+                 aminoacidpaircounts))
+        
+        # If frequency of codon pair = 0 but frequency of amino acid pair != 0 specifiy codon pair bias as NA as a marker to replace later
+        df[which(aminoacidpaircounts != 0 & df[, paste0(codon_ref$codon[i], codon_ref$codon[j])] == 0), paste0(codon_ref$codon[i], "_", codon_ref$codon[j], "_Bias")] <- NA
+        
+      }
+    }
+    
+    # Below calculations are easily changeable!
+    # Work out column of mean codon pair bias per virus across all non-NaN and non-NA values
+    df %<>% mutate(mean_CPB = rowMeans(select(., (matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$"))), na.rm=TRUE))
+    
+    # Do it not including pairs involving stop codons
+    df %<>% mutate(mean_CPB_nostop = rowMeans(select(., matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$"), -matches("TGA|TAG|TAA")), na.rm=TRUE))
+    df %<>% mutate(mean_CPB_nostop1 = rowMeans(select(., matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$"), -matches("^TGA|^TAG|^TAA")), na.rm=TRUE))
+    df %<>% mutate(mean_CPB_nostop2 = rowMeans(select(., matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$"), -matches("TGA.Bias|TAG.Bias|TAA.Bias")), na.rm=TRUE))
+    
+    # Following Babayan et al. rules: if frequency of amino acid pair = 0 replace NaN with mean codon pair bias
+    df %<>% mutate_at(vars(matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$")), ~ifelse(is.nan(.), mean_CPB, .))
+    
+    # Following Babayan et al. rules: if frequency of codon pair = 0 but frequency of amino acid pair != 0 replace NA with -9999 to indicate extreme underrepresentation
+    df %<>% mutate_at(vars(matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$")),~ifelse(is.na(.), -9999, .))
+  }
   
-  # # Calc codon pair bias as log (freq codon pair)/((freq codon A*freq codon B/freq aacid A*freq aacid B) * freq aacid pair) following Coleman et al. 2008
-  # # WORKS - BUT NOT CURRENTLY USING
-  #
-  # # Calculate codon pair biases
-  # for (i in 1:nrow(codon_ref)) {
-  #   for (j in 1:nrow(codon_ref)) {
-  #     
-  #     # Calculate frequency of pairs of corresponding amino acids for codons i and j  
-  #     aminoacidpaircounts <- df %>% 
-  #       select(do.call(paste0, 
-  #                      expand.grid(codon_ref %>% subset(aminoacid == codon_ref$aminoacid[i]) %>% .$codon,
-  #                                  codon_ref %>% subset(aminoacid == codon_ref$aminoacid[j]) %>% .$codon))) %>% rowSums()
-  #     
-  #     df[, paste0(codon_ref$codon[i], "_", codon_ref$codon[j], "_Bias")] <- 
-  #       log(
-  #         df[, paste0(codon_ref$codon[i], codon_ref$codon[j])]/
-  #           (((df[, codon_ref$codon[i]]*df[, codon_ref$codon[j]])/
-  #               (df[, paste0(codon_ref$aminoacid[i], "_aa")]*df[, paste0(codon_ref$aminoacid[j], "_aa")]))*
-  #              aminoacidpaircounts))
-  #     
-  #     # If frequency of codon pair = 0 but frequency of amino acid pair != 0 specifiy codon pair bias as NA as a marker to replace later
-  #     df[which(aminoacidpaircounts != 0 & df[, paste0(codon_ref$codon[i], codon_ref$codon[j])] == 0), paste0(codon_ref$codon[i], "_", codon_ref$codon[j], "_Bias")] <- NA
-  #     
-  #   }
-  # }
-  # 
-  # # Below calculations are easily changeable!
-  # # Work out column of mean codon pair bias per virus across all non-NaN and non-NA values
-  # df %<>% mutate(mean_CPB = rowMeans(select(., (matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$"))), na.rm=TRUE))
-  # 
-  # # Do it not including pairs involving stop codons
-  # df %<>% mutate(mean_CPB_nostop = rowMeans(select(., matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$"), -matches("TGA|TAG|TAA")), na.rm=TRUE))
-  # df %<>% mutate(mean_CPB_nostop1 = rowMeans(select(., matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$"), -matches("^TGA|^TAG|^TAA")), na.rm=TRUE))
-  # df %<>% mutate(mean_CPB_nostop2 = rowMeans(select(., matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$"), -matches("TGA.Bias|TAG.Bias|TAA.Bias")), na.rm=TRUE))
-  # 
-  # # Following Babayan et al. rules: if frequency of amino acid pair = 0 replace NaN with mean codon pair bias
-  # df %<>% mutate_at(vars(matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$")), ~ifelse(is.nan(.), mean_CPB, .))
-  # 
-  # # Following Babayan et al. rules: if frequency of codon pair = 0 but frequency of amino acid pair != 0 replace NA with -9999 to indicate extreme underrepresentation
-  # df %<>% mutate_at(vars(matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$")),~ifelse(is.na(.), -9999, .))
   
   return(df)
 }
+
+# Adapted from https://stackoverflow.com/a/27626007
+batch <- function(x, n) 
+{mapply(function(a, b) (x[a:b]), seq.int(from=1, to=length(x), by=n), pmin(seq.int(from=1, to=length(x), by=n)+(n-1), length(x)), SIMPLIFY=FALSE)}
+
 
 ####################
 # Define functions - old and unused, if you use them put them in the above
@@ -194,48 +341,6 @@ cbbPalette_full <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#00
 cbbPalette_bw <- c("#FFFFFF", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 cbbPalette_ordered <- c("#D55E00", "#E69F00", "#F0E442", "#009E73", "#56B4E9", "#0072B2", "#CC79A7", "#999999")
 cbbPalette_ordered_bw <- c("#D55E00", "#E69F00", "#F0E442", "#009E73", "#56B4E9", "#0072B2", "#CC79A7", "#b9b9b9")
-
-Seq_searcher <- function(x){
-  Seq_result <- entrez_search(db="nuccore", term=paste0('txid', x, '[Organism:noexp] AND ', searchterm),
-                              retmax=10000)
-}
-
-Seq_summary <- function(x){
-  
-  query_index <- split(seq(1,length(x)), ceiling(seq_along(seq(1,length(x)))/300))
-  Seq_result <- vector("list", length(query_index))
-  
-  for (i in 1:length(query_index)) {
-    Seq_result[[i]] <- entrez_summary(db = "nuccore",id = x[unlist(query_index[i])])
-    Sys.sleep(5)
-  }
-  
-  if(length(x) == 1){
-    return(Seq_result)
-  } else {
-    return(Seq_result %>% flatten %>% unname)
-  }
-}
-
-Seq_FASTA <- function(x){
-  
-  query_index <- split(seq(1,length(x)), ceiling(seq_along(seq(1,length(x)))/300))
-  Seq_result <- vector("list", length(query_index))
-  
-  for (i in 1:length(query_index)) {
-    Seq_result[[i]] <- entrez_fetch(db = "nuccore",id = x[unlist(query_index[i])], rettype="fasta_cds_na")
-    Sys.sleep(5)
-  }
-  return(flatten_chr(Seq_result) %>% paste(collapse=""))
-}
-
-metadata_title_cleaner <- function(x){
-  x %>%
-    as.character %>%
-    strsplit(., "(?<=.)(?= cds)", perl=TRUE) %>%                # split title into chunks based on "cds" separator
-    lapply(function(x) x[grepl("spike|surface gly|s gly|s prot|S gene|peplom|(S1)| S1 |(S2)| S2 |subunit 1|subunit 2|1 subunit|2 subunit", x, ignore.case = TRUE)] %>%       # search for the chunk describing the S protein
-             word(., -1))                                       # save whether partial or complete (which should be last word in string)
-}
 
 genomic_pca <- function(df, vars, outcome, choices = 1:2){
   
@@ -286,94 +391,6 @@ genomic_pca <- function(df, vars, outcome, choices = 1:2){
     theme_bw()
   ggplotly(g) %>% hide_legend()
   
-}
-
-
-
-
-
-matrixPlot <- function(df, outcome_name) {
-  matrix_starter <- df %>% filter(!is.na(!! sym(outcome_name))) %>% select(accessionversion, !! sym(outcome_name))
-  
-  matrix_grid <- full_join(matrix_starter, 
-                           matrix_starter, 
-                           by = outcome_name) %>% 
-    select(-(!! sym(outcome_name))) %>% 
-    group_by(accessionversion.x, accessionversion.y) %>% 
-    summarise(weight = n()) %>%
-    spread(accessionversion.y, weight, fill = 0) %>%
-    column_to_rownames("accessionversion.x") %>%
-    as.matrix
-  png(file = paste0("markdown\\figs\\matrix_",deparse(substitute(df)),"_",outcome_name,".png"), units = "in", height = 6, width = 6, res = 300)
-  par(mar=c(0, 0, 0, 0))
-  image(t(matrix_grid), useRaster=TRUE, axes=FALSE, col = c("white", "black"))
-  text(0.9,0.1,as.numeric(round(prop.table(table(matrix_grid[lower.tri(matrix_grid)]))[2]*100, 2)), col = "red", cex=2) # Print % nonzero, i.e. proportion of pairs with shared host
-  dev.off()
-}
-
-matrixPlotSpplevel <- function(df, outcome_name) {
-  matrix_starter <- df %>% arrange(genus, taxid) %>% filter(!is.na(!! sym(outcome_name))) %>% select(taxid, !! sym(outcome_name)) %>% distinct()
-  
-  matrix_grid <- full_join(matrix_starter, 
-                           matrix_starter, 
-                           by = outcome_name) %>% 
-    select(-(!! sym(outcome_name))) %>% 
-    group_by(taxid.x, taxid.y) %>% 
-    summarise(weight = n()) %>%
-    spread(taxid.y, weight, fill = 0) %>%
-    column_to_rownames("taxid.x") %>%
-    as.matrix
-  
-  matrix_info <- matrix_starter %>% 
-    select(-!! sym(outcome_name)) %>%
-    distinct() %>%
-    left_join(allcov_df %>% select(childtaxa_id, childtaxa_name, genus), by = c("taxid" = "childtaxa_id")) %>%
-    mutate(genus = gsub("0","unclassified",genus),
-           rowsidecol = case_when(                       # Set side colours using same genus colours as ggplots elsewhere
-             genus == "Alphacoronavirus" ~ "#F8766D",
-             genus == "Betacoronavirus" ~ "#A3A500",
-             genus == "Deltacoronavirus" ~ "#00BF7D",
-             genus == "Gammacoronavirus" ~ "#00B0F6",
-             genus == "unclassified" ~ "#E76BF3",
-           ))
-  
-  png(file = paste0("markdown\\figs\\matrix_covspplevel_",deparse(substitute(df)),"_",outcome_name,".png"), units = "in", height = 30, width = 30, res = 300)
-  heatmap.2(matrix_grid,
-            density.info="none", trace="none", dendrogram="none",
-            Rowv=NA, Colv=NA,
-            labRow = matrix_info$childtaxa_name,   # specify row, column labels = species
-            labCol = matrix_info$childtaxa_name,
-            RowSideColors = matrix_info$rowsidecol,
-            col = c("gray10", "gray50", "gray90"),
-            breaks = c(-0.5,0.5,1.5,2.5),
-            lhei=c(0.4,10), lwid=c(0.6,10),
-            sepwidth=c(0.1,0.1),
-            sepcolor="black",
-            colsep=1:ncol(matrix_grid),
-            rowsep=1:nrow(matrix_grid),
-            margins = c(15, 15))
-  par(lend = 1)           # square line ends for the color legend
-  legend(xpd = TRUE, x=0.08, y=1.02, legend = matrix_info$genus %>% unique %>% sort, fill = c("#F8766D", "#A3A500", "#00BF7D", "#00B0F6", "#E76BF3"), ncol = 5)
-  dev.off()
-  
-  png(file = paste0("markdown\\figs\\matrix_covspplevel_",deparse(substitute(df)),"_",outcome_name,"_ordered.png"), units = "in", height = 30, width = 30, res = 300)
-  heatmap.2(matrix_grid,
-            density.info="none", trace="none", dendrogram="none",
-            Rowv=TRUE, Colv=TRUE, revC=TRUE,
-            labRow = matrix_info$childtaxa_name,   # specify row, column labels = species
-            labCol = matrix_info$childtaxa_name,
-            RowSideColors = matrix_info$rowsidecol,
-            col = c("gray10", "gray50", "gray90"),
-            breaks = c(-0.5,0.5,1.5,2.5),
-            lhei=c(0.4,10), lwid=c(0.6,10),
-            sepwidth=c(0.1,0.1),
-            sepcolor="black",
-            colsep=1:ncol(matrix_grid),
-            rowsep=1:nrow(matrix_grid),
-            margins = c(15, 15))
-  par(lend = 1)           # square line ends for the color legend
-  legend(xpd = TRUE, x=0.08, y=1.02, legend = matrix_info$genus %>% unique %>% sort, fill = c("#F8766D", "#A3A500", "#00BF7D", "#00B0F6", "#E76BF3"), ncol = 5)
-  dev.off()
 }
 
 ml_extractor <- function(f, type="full"){
