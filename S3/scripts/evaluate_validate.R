@@ -20,6 +20,23 @@ library(ranger)
 # library(patchwork)
 # library(aricode)
 
+
+## Stray varimp order code
+
+varimp_order_cds <- lapply(rf_list, function(x)
+  varImp(x)$importance %>% rownames_to_column("name") %>% mutate(Overall = Overall/100) %>% rename(relGini = Overall)
+) %>% 
+  bind_rows() %>%
+  group_by(name) %>% 
+  summarise(mean = mean(relGini)) %>% 
+  arrange(-mean) %>%
+  pull(name)
+
+
+
+
+
+
 # Read in list of most important variables for use in PD
 # vars_to_pd<- readRDS("varimp_order.rds")[1:4]
 # 

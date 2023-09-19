@@ -2,7 +2,7 @@
 # Define functions #
 ####################
 
-process_NCBI_DNA <- function(x, label, type){
+process_NCBI_seq <- function(x, label, type){
   df <- data.frame(title = x %>% names(), 
                    length = x %>% width()) 
   
@@ -10,8 +10,10 @@ process_NCBI_DNA <- function(x, label, type){
     df %<>% tidyr::separate(title, sep = "\\|", into = c("title", "subtype", "date", "accession", "gene", "segment"), extra = "drop")
   } else if (type == "cds"){
     df %<>% tidyr::separate(title, sep = "\\|", into = c("title", "subtype", "date", "cds_id", "gene", "segment", "gb", "accession"), extra = "drop")
+  } else if (type == "prot"){
+    df %<>% tidyr::separate(title, sep = "\\|", into = c("title", "subtype", "date", "prot_id", "gene", "segment",  "gb", "accession"), extra = "drop")  
   } else {
-    stop("invalid type")
+    stop("invalid type (must be 'nuc', 'cds', or 'prot')")
   }
   
   df %<>%
@@ -20,10 +22,12 @@ process_NCBI_DNA <- function(x, label, type){
       gene = str_sub(str_sub(gene, 4, -1), 1, -2),
       label = label,
       src = "NCBI",
-      subtype = case_when(
+      subtype = case_when(                    # fix mislabelled records where known
         subtype == "H3N6,H3" ~ "H3N6",
         subtype == "H6N1,H6" ~ "H6N1",
         subtype == "H01N2" ~ "H1N2",
+        title == "A/mallard/Korea/M198/2013" ~ "H4N2",
+        title == "A/Duck/China/FJ2253/2014" ~ "H6N6",
         TRUE ~ toupper(subtype)
       ),
       title = case_when(
@@ -43,10 +47,9 @@ process_NCBI_DNA <- function(x, label, type){
       string = x %>% as.character(use.names=FALSE),
     ) %>% 
     select(-any_of("gb")) %>%
-    filter(gene != "N40") %>%
     relocate(fastahead, string, .after = last_col())
   
-  if (type == "cds"){
+  if (type == "cds"|type == "prot"){
     df %<>%
       mutate(gene = case_when(
         segment == 1 & grepl("\\|PB2\\|", fastahead) ~ "PB2",                  # Attempt to assign based on fasta header first
@@ -73,45 +76,65 @@ process_NCBI_DNA <- function(x, label, type){
         segment == 7 ~ "M1",                                                   # Else set to M1
         segment == 8 & grepl("(gb|.*\\:.*\\,).*)",fastahead) ~ "NS2",          # Distinguish NS2 based on joining ORFs
         segment == 8 ~ "NS1"                                                   # Else set to NS1
-      )) %>%
-      filter(!(grepl("\\|N40\\||\\|M42\\|", fastahead)))
+      )) 
+  }
+  
+  if(type == "nuc"|type == "cds"){
+    df %<>% filter(!(grepl("\\|N40\\||\\|M42\\|", fastahead)))
   }
   
   return(df)
 }
 
-process_GISAID_DNA <- function(x, label, type){
+process_GISAID_seq <- function(x, label, type){
   df <- data.frame(title = x %>% names(), 
                    length = x %>% width()) 
   
   if (type == "nuc"){
     df %<>% tidyr::separate(title, sep = "\\|", into = c("title", "UID", "subtype", "null", "date", "INSDC", "accession", "title2", "gene", "segment"), extra = "drop")
+  } else if (type == "prot"){
+    df %<>% tidyr::separate(title, sep = "\\|", into = c("title", "UID", "subtype", "null", "date", "protINSDC", "protaccession", "gene"), extra = "drop")  
   } else {
-    stop("invalid type")
+    stop("invalid type (must be 'nuc' or 'prot')")
   }
   
-  df %<>%
-    mutate(
-      accession = ifelse(accession %in% "", NA, accession),
-      segment = case_when(
-        gene == "PB2" ~ "1",
-        gene == "PB1" ~ "2",
-        gene == "PA" ~ "3",
-        gene == "HA" ~ "4",
-        gene == "NP" ~ "5",
-        gene == "NA" ~ "6",
-        gene == "MP" ~ "7",
-        gene == "NS" ~ "8"
-      ),
-      subtype = str_sub(subtype, 5, -1),
-      label = label,
-      src = "GISAID",
-      title = gsub(" ", "_", title),
-      gid = UID,
-      fastahead = x %>% names() %>% gsub(" ", "_", .),
-      string = x %>% as.character(use.names=FALSE)
-    ) %>%
-    select(-any_of(c("null", "title2")))
+  if (type == "nuc"){
+    df %<>%
+      mutate(
+        accession = ifelse(accession %in% "", NA, accession),
+        segment = case_when(
+          gene == "PB2" ~ "1",
+          gene == "PB1" ~ "2",
+          gene == "PA" ~ "3",
+          gene == "HA" ~ "4",
+          gene == "NP" ~ "5",
+          gene == "NA" ~ "6",
+          gene == "MP" ~ "7",
+          gene == "NS" ~ "8"
+        ),
+        subtype = str_sub(subtype, 5, -1),
+        label = label,
+        src = "GISAID",
+        title = gsub(" ", "_", title),
+        gid = UID,
+        fastahead = x %>% names() %>% gsub(" ", "_", .),
+        string = x %>% as.character(use.names=FALSE)
+      ) %>%
+      select(-any_of(c("null", "title2")))
+  }
+  
+  if (type == "prot"){
+    df %<>%
+      mutate(
+        subtype = str_sub(subtype, 5, -1),
+        label = label,
+        src = "GISAID",
+        title = gsub(" ", "_", title),
+        gid = UID,
+        fastahead = x %>% names() %>% gsub(" ", "_", .),
+      ) %>%
+      select(-any_of(c("null")))
+  }
   
   return(df)
 }
@@ -174,14 +197,15 @@ calc_composition_counts <- function(x, codonpairs = FALSE){
 
 calc_kmer_counts <- function(x, k, overlap = TRUE, rescale = TRUE){
   
-  df <- cbind(data.frame(
-    cds_id = x %>% names(),
-    x %>% oligonucleotideFrequency(k, step=ifelse(overlap == TRUE, 1, k))
+  df <- bind_cols(data.frame(
+    gid = x %>% pull(gid),
+    segment = x %>% pull(segment),
+    x %>% pull(string) %>% DNAStringSet() %>% oligonucleotideFrequency(k, step=ifelse(overlap == TRUE, 1, k))
   )) 
   
   if(rescale == TRUE){
     df %<>%
-      mutate(across(-1)/rowSums(across(-1)))
+      mutate(across(-c(1,2))/rowSums(across(-c(1,2))))
   }
   
   return(df)
@@ -307,10 +331,13 @@ calc_composition_bias <- function(df, codonpairs = FALSE){
     }
     
     # Below calculations are easily changeable!
+    # If frequency of amino acid = 0 replace NaN with 1 (always equivalent to mean RSCU)
+    df %<>% mutate_at(vars(matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$")), ~ifelse(is.nan(.), 1, .))
+    
     # Work out column of mean codon pair bias per virus across all non-NaN and non-NA values
     df %<>% mutate(mean_CPB = rowMeans(select(., (matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$"))), na.rm=TRUE))
     
-    # Do it not including pairs involving stop codons
+    # Do it excluding pairs involving stop codons
     df %<>% mutate(mean_CPB_nostop = rowMeans(select(., matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$"), -matches("TGA|TAG|TAA")), na.rm=TRUE))
     df %<>% mutate(mean_CPB_nostop1 = rowMeans(select(., matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$"), -matches("^TGA|^TAG|^TAA")), na.rm=TRUE))
     df %<>% mutate(mean_CPB_nostop2 = rowMeans(select(., matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$"), -matches("TGA.Bias|TAG.Bias|TAA.Bias")), na.rm=TRUE))
@@ -322,18 +349,26 @@ calc_composition_bias <- function(df, codonpairs = FALSE){
     df %<>% mutate_at(vars(matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$")),~ifelse(is.na(.), -9999, .))
   }
   
-  
   return(df)
 }
+
+fasta_name_clean <- function(file){
+  fasta <- readSet(file = file)
+  names(fasta) <- names(fasta) %>% 
+    gsub(" ", "_", .) %>% # Replace spaces with underscores, else iFeaturesOmega will not parse FASTA properly
+    gsub(">", "", .)      # Remove special characters (that should not be present anyway), else iFeaturesOmega will not parse FASTA properly
+  writeXStringSet(fasta, file = file)
+  rm(fasta)
+}
+
+####################
+# Define functions - old and unused, if you use them put them in the above
+####################
 
 # Adapted from https://stackoverflow.com/a/27626007
 batch <- function(x, n) 
 {mapply(function(a, b) (x[a:b]), seq.int(from=1, to=length(x), by=n), pmin(seq.int(from=1, to=length(x), by=n)+(n-1), length(x)), SIMPLIFY=FALSE)}
 
-
-####################
-# Define functions - old and unused, if you use them put them in the above
-####################
 
 # Set up accessible colour blindness palette
 cbbPalette <- c("#E69F00", "#F0E442", "#56B4E9", "#009E73", "#D55E00")
