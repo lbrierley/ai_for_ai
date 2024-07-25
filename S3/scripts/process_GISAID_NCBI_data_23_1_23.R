@@ -27,7 +27,7 @@ GISAID_avian_nuc_fix_ref <- readSet(file = "S3\\data\\full\\GISAID_avian_nuc.fas
 GISAID_avian_nuc_df %<>%
   rows_update(., GISAID_avian_nuc_fix_ref, by = "INSDC")
 
-# GISAID metadata - in long format specificying IDs for each respective protein of each sequence
+# GISAID metadata - in long format specifying IDs for each respective protein of each sequence
 meta_ref <- bind_rows(
   readxl::read_excel("S3/data/full/GISAID_avian_meta.xls", guess_max = 1048576) %>%
     select(1:9) %>%
@@ -144,12 +144,18 @@ allflu_nuc_df %<>%
                              TRUE ~ 0))
 
 # Plot whole genome sequence dates
-allflu_wgs_df %>%
-  filter(!is.na(date)) %>%
-  ggplot(aes(x = date)) +
-  geom_histogram() +
-  scale_x_date(limits = c(as.Date("1990-01-01"), as.Date("2022-12-31"))) +
-  facet_grid(rows = vars(label), cols = vars(src), scales = "free")
+g1 <- allflu_wgs_df %>%
+  filter(!is.na(date) & date > as.Date("1990-01-01")) %>%
+  add_count(subtype, name = "sub_n") %>%
+  filter(sub_n > 750 | subtype %in% c("H3N8", "H5N1", "H5N6", "H7N3", "H7N4", "H7N9", "H9N2", "H10N8")) %>%
+  ggplot(aes(x = as.Date(date), fill = subtype)) +
+  geom_histogram(position = "stack", binwidth=365) +
+  scale_fill_manual(values = rev(c(RColorBrewer::brewer.pal(12, "Paired"), "black"))) +
+  #scale_x_date(limits = c(as.Date("1990-01-01"), as.Date("2022-12-31"))) +
+  scale_x_date(date_breaks = "1 year", date_labels =  "%y") +
+  facet_grid(rows = vars(label), cols = vars(src), scales = "free_y")
+
+ggsave("S3\\figures_tables\\time_dist_wgs.png", plot = g1, width = 18, height = 6)
 
 # allflu_wgs_df %>%
 #   mutate(date = date %>% gsub("--", "-06-", .) %>% # assume midpoint for missing months
@@ -287,6 +293,29 @@ allflu_cds_df %<>%
 #   geom_density(alpha = 0.25) +
 #   facet_wrap(~gene, ncol = 2, scales = "free")
 
+#############################
+# Process protein sequences #
+#############################
+
+# Read in from fasta files to generate metadata for purpose of linking and identifying proteins/segments
+GISAID_avian_prot_df <- process_GISAID_seq(x = readSet(file = "S3\\data\\full\\prot\\GISAID_avian_prot.fasta"), 
+                                           label = "nz", type = "prot")
+
+GISAID_human_prot_df <- process_GISAID_seq(x = readSet(file = "S3\\data\\full\\prot\\GISAID_human_prot.fasta"), 
+                                           label = "zoon", type = "prot")
+
+NCBI_avian_prot_df <- process_NCBI_seq(x = readSet(file = "S3\\data\\full\\prot\\NCBI_avian_prot.fasta"), label = "nz", type = "prot") %>% 
+  select(-string, -gid) %>%
+  left_join(allflu_nuc_df %>% filter(src == "NCBI") %>% select(gid, accession), by = "accession") # Use pre-made gids (from nucleotide sequences) to define which prot sequences belong to which wgs
+
+NCBI_human_prot_df <- process_NCBI_seq(x = readSet(file = "S3\\data\\full\\prot\\NCBI_human_prot.fasta"), label = "zoon", type = "prot") %>% 
+  select(-string, -gid) %>%
+  left_join(allflu_nuc_df %>% filter(src == "NCBI") %>% select(gid, accession), by = "accession") # Use pre-made gids (from nucleotide sequences) to define which prot sequences belong to which wgs
+
+
+#######################################################
+# Calculate and process machine learning feature sets #
+#######################################################
 #######################################
 # Calculate and save features: k-mers #
 #######################################
@@ -298,7 +327,7 @@ if(load_prev_calcs == FALSE) {
       allflu_nuc_df %>%
         filter(segment == j) %>%
         calc_kmer_counts(k = i, overlap = TRUE) %>% 
-        saveRDS(paste0("S3\\data\\full\\nuc\\allflu_nuc_",i,"mer_pt_",c("PB2", "PB1", "PA", "HA", "NP", "NA", "M1", "NS1")[j],".rds"))
+        saveRDS(paste0("S3\\data\\full\\mlready\\allflu_nuc_",i,"mer_pt_",c("PB2", "PB1", "PA", "HA", "NP", "NA", "M1", "NS1")[j],".rds"))
     }
   }
   
@@ -337,7 +366,9 @@ if(load_prev_calcs == TRUE) {
     temp_df %>%
       calc_composition_bias(codonpairs = FALSE) %>%                          # Do not calculate codon pair biases for individual protein cds
       select(cds_id, matches("_Bias$")) %>%
-      saveRDS(paste0("S3\\data\\full\\cds\\\allflu_cds_compbias_pt_",unique(allflu_cds_df$gene)[i],".rds"))
+      left_join(allflu_cds_df %>% select(cds_id, gid)) %>%
+      relocate(gid) %>%
+      saveRDS(paste0("S3\\data\\full\\mlready\\\allflu_cds_compbias_pt_",unique(allflu_cds_df$gene)[i],".rds"))
     
     rm(temp_df)
   }
@@ -359,140 +390,6 @@ if(load_prev_calcs == TRUE) {
   
 }
 
-
-################################################################################
-# Calculate clustering based on k-mer overlaps to collapse redundant sequences #
-################################################################################
-
-if(load_prev_calcs == FALSE) {
-  
-  # Save whole genome sequences with 8 coding sequences for clustering
-  wgs_temp <- allflu_wgs_df %>% 
-    filter(wgs_dup == 0) %>% 
-    inner_join(allflu_cds_df %>% filter(n >= 8) %>% select(gid) %>% distinct()) %>%   # Select only wgs having all 8 cds
-    select(gid, wgs_string)
-  wgs <- wgs_temp$wgs_string %>% DNAStringSet()
-  names(wgs) <- wgs_temp$gid
-  writeXStringSet(wgs, filepath = "S3\\data\\full\\allflu_nuc_wgs.FASTA")
-  rm(wgs_temp, wgs)
-  
-  # Call mmSeq2 14-7e284 to cluster on similarity score
-  system("E:\\Working\\ai_for_ai\\S3\\scripts\\mmseqs-win64\\mmseqs.bat easy-linclust E:\\Working\\ai_for_ai\\S3\\data\\full\\allflu_nuc_wgs.FASTA E:\\Working\\ai_for_ai\\S3\\data\\full\\nuc\\wgs_90_8 tmp --min-seq-id 0.90 -c 0.8 --cov-mode 0",
-         intern = TRUE, show.output.on.console = TRUE, ignore.stdout=FALSE, ignore.stderr=FALSE, wait=FALSE)
-  
-  system("E:\\Working\\ai_for_ai\\S3\\scripts\\mmseqs-win64\\mmseqs.bat easy-linclust E:\\Working\\ai_for_ai\\S3\\data\\full\\allflu_nuc_wgs.FASTA E:\\Working\\ai_for_ai\\S3\\data\\full\\nuc\\wgs_80_8 tmp --min-seq-id 0.80 -c 0.8 --cov-mode 0",
-         intern = TRUE, show.output.on.console = TRUE, ignore.stdout=FALSE, ignore.stderr=FALSE, wait=FALSE)
-  
-  # system("H:\\Working\\ai_for_ai\\S3\\scripts\\mmseqs-win64\\mmseqs.bat easy-linclust H:\\Working\\ai_for_ai\\S3\\data\\full\\allflu_nuc_wgs.FASTA H:\\Working\\ai_for_ai\\S3\\data\\full\\nuc\\wgs_90_8 tmp --min-seq-id 0.90 -c 0.8 --cov-mode 0",
-  #        intern = TRUE, show.output.on.console = TRUE, ignore.stdout=FALSE, ignore.stderr=FALSE, wait=FALSE)
-  # 
-  # system("H:\\Working\\ai_for_ai\\S3\\scripts\\mmseqs-win64\\mmseqs.bat easy-linclust H:\\Working\\ai_for_ai\\S3\\data\\full\\allflu_nuc_wgs.FASTA H:\\Working\\ai_for_ai\\S3\\data\\full\\nuc\\wgs_80_8 tmp --min-seq-id 0.80 -c 0.8 --cov-mode 0",
-  #        intern = TRUE, show.output.on.console = TRUE, ignore.stdout=FALSE, ignore.stderr=FALSE, wait=FALSE)
-  
-  # # Test pairwise alignment identity of selected sequences to check clustering
-  # allflu_wgs_df %>% filter(gid == "A/China/ZMD-22-2/2022O") %>% pull(wgs_string) %>%
-  #   pairwiseAlignment(allflu_wgs_df %>% filter(gid == "A/Anhui/2/2005H") %>% pull(wgs_string)) %>% pid
-  
-}
-
-######################################################################
-# Check pre-calculated and saved protein features from iFeatureOmega #
-######################################################################
-
-# Read in from fasta files to generate metadata for purpose of linking and identifying proteins/segments
-GISAID_avian_prot_df <- process_GISAID_seq(x = readSet(file = "S3\\data\\full\\prot\\GISAID_avian_prot.fasta"), 
-                                           label = "nz", type = "prot")
-
-GISAID_human_prot_df <- process_GISAID_seq(x = readSet(file = "S3\\data\\full\\prot\\GISAID_human_prot.fasta"), 
-                                           label = "zoon", type = "prot")
-
-NCBI_avian_prot_df <- process_NCBI_seq(x = readSet(file = "S3\\data\\full\\prot\\NCBI_avian_prot.fasta"), label = "nz", type = "prot") %>% 
-  select(-string, -gid) %>%
-  left_join(allflu_nuc_df %>% filter(src == "NCBI") %>% select(gid, accession), by = "accession") # Use pre-made gids (from nucleotide sequences) to define which prot sequences belong to which wgs
-
-NCBI_human_prot_df <- process_NCBI_seq(x = readSet(file = "S3\\data\\full\\prot\\NCBI_human_prot.fasta"), label = "zoon", type = "prot") %>% 
-  select(-string, -gid) %>%
-  left_join(allflu_nuc_df %>% filter(src == "NCBI") %>% select(gid, accession), by = "accession") # Use pre-made gids (from nucleotide sequences) to define which prot sequences belong to which wgs
-
-##################################################################
-# Select clustering run and features to prepare df for ML models #
-##################################################################
-
-# Read in clustering from Mmseq2 and select indicative sequences: select random zoonotic if zoonotic in cluster, else select centroid
-cluster_ref <- read.table("S3\\data\\full\\nuc\\wgs_90_8_cluster.tsv", sep = '\t', quote = "\"",  encoding="UTF-8", comment.char = '@', header = FALSE)
-
-# Check mixed labels within clusters
-cluster_ref %<>% left_join((allflu_wgs_df %>% select(gid, label)), by = c("V2" = "gid")) 
-cluster_ref %<>% left_join(cluster_ref %>% group_by(V1) %>% summarise(mix = n_distinct(label)))
-
-cluster_ref %>% group_by(V1) %>% summarise(mix = n_distinct(label)) %>% with(., table(mix)) %>% prop.table()  # Most (98%) of clusters not mixed
-cluster_ref %>% group_by(V1) %>% summarise(n = n_distinct(V2)) %>% with(., table(n)) # Clusters range in size from 1 to ~300, though over half are singletons
-cluster_ref %>% filter(mix == 2)
-
-# For mixed clusters where cluster representative is not zoonotic, select a random zoonotic representative instead
-cluster_ref %<>% mutate(manual_cluster_rep = case_when(
-  mix == 2 & !(V1 %in% (cluster_ref %>% filter(mix == 2 & V1 == V2 & label == "zoon") %>% pull(V1))) ~ 1,
-  TRUE ~ 0)
-)
-
-set.seed(1516)
-manual_cluster_df <- cluster_ref %>% filter(manual_cluster_rep == 1 & label == "zoon") %>% group_by(V1) %>% slice_sample(n = 1) %>% rename(cluster_rep = V2) %>% ungroup
-
-cluster_ref %<>% left_join(manual_cluster_df %>% select(V1, cluster_rep), by = "V1") %>% mutate(cluster_rep = coalesce(cluster_rep, V1)) %>% select(cluster_rep, V2, mix)
-
-cluster_ref %>% select(cluster_rep) %>% distinct %>% left_join((allflu_wgs_df %>% select(gid, src, label)), by = c("cluster_rep" = "gid")) %>%  with(., table(src, label)) %>% addmargins # Most (91%; 4048) of the 4448 clusters NCBI (though NCBI was read first?)
-
-# Save reference set of which sequences belong to which cluster
-cluster_ref %>% rename(gid = V2) %>% write.csv("S3\\data\\full\\cluster_members.csv")
-
-# Save reference set of cluster-representative sequence characteristics
-cluster_ref %>% select(cluster_rep, mix) %>% distinct %>% 
-  left_join(allflu_wgs_df %>% select(gid, src, label, subtype, date),  by = c("cluster_rep" = "gid")) %>% 
-  write.csv("S3\\data\\full\\cluster_rep_labels.csv")
-
-# # Read cluster ref back in
-# cluster_ref <-  read.csv("S3\\data\\full\\cluster_rep_labels.csv")
-
-# Filter feature sets to clusters before uploading to barkla cluster
-# Nuc
-
-for (j in c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")){
-  for(i in c(2:6)){
-    readRDS(paste0("S3\\data\\full\\nuc\\allflu_nuc_",i,"mer_pt_",j,".rds")) %>%
-      filter(gid %in% cluster_ref$cluster_rep) %>%
-      saveRDS(paste0("S3\\data\\full\\mlready\\allflu_nuc_",i,"mer_pt_",j,".rds"))   
-  }
-}
-
-# Cds
-
-for (j in c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")){
-  readRDS(paste0("S3\\data\\full\\cds\\allflu_cds_compbias_pt_",j,".rds")) %>%
-    left_join(allflu_cds_df %>% select(cds_id, gid)) %>%
-    filter(gid %in% cluster_ref$cluster_rep) %>%
-    relocate(gid) %>%
-    saveRDS(paste0("S3\\data\\full\\mlready\\allflu_cds_compbias_pt_",j,".rds"))   
-}
-
-# Prot
-
-for (feat in c("2mer", "ctdc", "ctriad", "ctdt", "ctdd", "pseaac")){
-  x <- list.files("S3\\data\\full\\prot\\", pattern = feat, full.names = TRUE) %>%
-    map_dfr(read.csv) %>%
-    bind_cols(bind_rows(GISAID_avian_prot_df, GISAID_human_prot_df, NCBI_avian_prot_df, NCBI_human_prot_df)) %>% 
-    filter(src == "NCBI" | src == "GISAID" & protaccession %in% meta_ref$value)  # Use canonical GISAID metadata to define which prot sequences belong to which wgs
-  
-  for (j in c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")){
-    x %>%
-      filter(gene == j & gid %in% cluster_ref$cluster_rep) %>%
-      select(-X, -title, -UID, -subtype, -date, -protINSDC, -protaccession, -gene, -length, -label, -src, -fastahead, -prot_id, -segment, -accession) %>%
-      relocate(gid) %>%
-      saveRDS(paste0("S3\\data\\full\\mlready\\allflu_prot_",feat,"_pt_",j,".rds"))
-  }
-  
-  rm(x)
-}
-
 # # Arrange protein-wise features in separate columns of one training data set - UNUSED
 # 
 # list.files(path = "S3\\data\\full\\", pattern = "allflu_cds_compbias_pt_.*\\.rds", full.names = TRUE) %>%
@@ -502,6 +399,164 @@ for (feat in c("2mer", "ctdc", "ctriad", "ctdt", "ctdd", "pseaac")){
 #   select(-n, -wgs_dup) %>%
 #   pivot_wider(names_from = gene, values_from = matches("_Bias"), names_glue = "{gene}_{.value}") %>%
 #   saveRDS(paste0("S3\\data\\full\\allflu_cds_compbias_proteinwise.rds"))
+
+
+######################################################################
+# Check pre-calculated and saved protein features from iFeatureOmega #
+######################################################################
+
+for (feat in c("2mer", "ctriad", "ctdc", "ctdt", "ctdd", "pseaac")){
+  x <- list.files("S3\\data\\full\\prot\\", pattern = feat, full.names = TRUE) %>%
+    map_dfr(read.csv) %>%
+    bind_cols(bind_rows(GISAID_avian_prot_df, GISAID_human_prot_df, NCBI_avian_prot_df, NCBI_human_prot_df)) %>% 
+    filter(!(grepl("\\|N40\\||\\|M42\\|", fastahead))) %>%
+    filter(src == "NCBI" | src == "GISAID" & protaccession %in% meta_ref$value)  # Use canonical GISAID metadata to define which prot sequences belong to which wgs
+  
+  for (j in c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")){
+    x %>%
+      filter(gene == j) %>%
+      select(-X, -title, -UID, -subtype, -date, -protINSDC, -protaccession, -gene, -length, -label, -src, -fastahead, -prot_id, -segment, -accession) %>%
+      relocate(gid) %>%
+      saveRDS(paste0("S3\\data\\full\\mlready\\allflu_prot_",feat,"_pt_",j,".rds"))
+  }
+  
+  rm(x)
+}
+
+
+###########################################
+# Cluster to collapse redundant sequences #
+###########################################
+##########################################################################
+# Calculate clustering based on k-mer overlaps, considering holdout sets #
+##########################################################################
+
+if(load_prev_calcs == FALSE) {
+  
+  wgs_all <- allflu_wgs_df %>% 
+    filter(wgs_dup == 0) %>% 
+    inner_join(allflu_cds_df %>% filter(n >= 8) %>% select(gid) %>% distinct())   # Select only wgs having all 8 cds
+  
+  wgs_all %>%
+    select(gid, title, subtype, label, src, date) %>%
+    write.csv("S3\\data\\full\\allflu_wgs_ref.csv")
+  
+  ## Cluster complete dataset 
+  
+  # Save whole genome sequences with 8 coding sequences for clustering
+  wgs <- wgs_all$wgs_string %>% DNAStringSet()
+  names(wgs) <- wgs_all$gid
+  writeXStringSet(wgs, filepath = paste0("S3\\data\\full\\allflu_nuc_wgs_full.FASTA"))
+  rm(wgs_all, wgs)
+  
+  # Call MMseqs2 14-7e284 to cluster on similarity score
+  for (minseqid_param in cluster_minseqid){
+    
+    for(C_param in cluster_C){
+      
+      system(paste0("E:\\Working\\ai_for_ai\\S3\\scripts\\mmseqs-win64\\mmseqs.bat easy-linclust E:\\Working\\ai_for_ai\\S3\\data\\full\\allflu_nuc_wgs_full.FASTA E:\\Working\\ai_for_ai\\S3\\data\\full\\nuc\\wgs_full_", minseqid_param*100, "_", C_param*10, " tmp --min-seq-id ", minseqid_param ," -c ", C_param, " --cov-mode 0"),
+             intern = TRUE, show.output.on.console = TRUE, ignore.stdout=FALSE, ignore.stderr=FALSE, wait=FALSE)
+      
+      file.remove(list.files(path = "E:\\Working\\ai_for_ai\\S3\\data\\full\\nuc\\", pattern = "*.fasta", full.names = TRUE)) # Don't need to keep the fasta files from MMseqs2, just the .tsv
+      
+    }
+  }
+  
+  ## Cluster dataset holding out subtype each time
+  
+  for(holdout in c(holdout_nz, holdout_zoon)){
+    
+    # Save whole genome sequences with 8 coding sequences for clustering
+    wgs_temp <- allflu_wgs_df %>% 
+      filter(wgs_dup == 0 & subtype != holdout) %>% 
+      inner_join(allflu_cds_df %>% filter(n >= 8) %>% select(gid) %>% distinct()) %>%   # Select only wgs having all 8 cds
+      select(gid, wgs_string)
+    wgs <- wgs_temp$wgs_string %>% DNAStringSet()
+    names(wgs) <- wgs_temp$gid
+    writeXStringSet(wgs, filepath = paste0("S3\\data\\full\\allflu_nuc_wgs_ex_",holdout,".FASTA"))
+    rm(wgs_temp, wgs)
+    
+  }
+  
+  # Call MMseqs2 14-7e284 to cluster on similarity score
+  for(holdout in c(holdout_nz, holdout_zoon)){
+    
+    for (minseqid_param in cluster_minseqid){
+      
+      for(C_param in cluster_C){
+        
+        system(paste0("E:\\Working\\ai_for_ai\\S3\\scripts\\mmseqs-win64\\mmseqs.bat easy-linclust E:\\Working\\ai_for_ai\\S3\\data\\full\\allflu_nuc_wgs_ex_", holdout, ".FASTA E:\\Working\\ai_for_ai\\S3\\data\\full\\nuc\\wgs_ex_", holdout, "_", minseqid_param*100, "_", C_param*10, " tmp --min-seq-id ", minseqid_param ," -c ", C_param, " --cov-mode 0"),
+               intern = TRUE, show.output.on.console = TRUE, ignore.stdout=FALSE, ignore.stderr=FALSE, wait=FALSE)
+        
+        file.remove(list.files(path = "E:\\Working\\ai_for_ai\\S3\\data\\full\\nuc\\", pattern = "*.fasta", full.names = TRUE)) # Don't need to keep the fasta files from MMseqs2, just the .tsv
+        
+      }
+    }
+    
+  }
+  
+  # # Test pairwise alignment identity of selected sequences to check clustering
+  # allflu_wgs_df %>% filter(gid == "A/China/ZMD-22-2/2022O") %>% pull(wgs_string) %>%
+  #   pairwiseAlignment(allflu_wgs_df %>% filter(gid == "A/Anhui/2/2005H") %>% pull(wgs_string)) %>% pid
+  
+}
+
+#########################################################
+# Select clustering and associated labels for ML models #
+#########################################################
+
+for(clusterset in list.files(path = "E:\\Working\\ai_for_ai\\S3\\data\\full\\nuc\\", pattern = "*.tsv")){
+  
+  # Read in clustering from Mmseq2 and select indicative sequences: select random zoonotic if zoonotic in cluster, else select centroid
+  cluster_ref <- read.table(paste0("S3\\data\\full\\nuc\\", clusterset), sep = '\t', quote = "\"",  encoding="UTF-8", comment.char = '@', header = FALSE)
+  
+  # Check mixed labels within clusters
+  cluster_ref %<>% left_join((allflu_wgs_df %>% select(gid, label)), by = c("V2" = "gid")) 
+  cluster_ref %<>% left_join(cluster_ref %>% group_by(V1) %>% summarise(mix = n_distinct(label)))
+  
+  cluster_ref %>% distinct(V1, mix) %>% with(., table(mix)) %>% prop.table() %>% print()
+  # cluster_ref %>% group_by(V1) %>% summarise(n = n_distinct(V2)) %>% with(., table(n)) %>% print() # Cluster size range
+  # cluster_ref %>% filter(mix == 2)
+  
+  # For mixed clusters where cluster representative is not zoonotic, select a random zoonotic representative instead
+  cluster_ref %<>% mutate(manual_cluster_rep = case_when(
+    mix == 2 & !(V1 %in% (cluster_ref %>% filter(mix == 2 & V1 == V2 & label == "zoon") %>% pull(V1))) ~ 1,
+    TRUE ~ 0)
+  )
+  
+  set.seed(1516)
+  manual_cluster_df <- cluster_ref %>% filter(manual_cluster_rep == 1 & label == "zoon") %>% group_by(V1) %>% slice_sample(n = 1) %>% rename(cluster_rep = V2) %>% ungroup
+  
+  cluster_ref %<>% left_join(manual_cluster_df %>% select(V1, cluster_rep), by = "V1") %>% mutate(cluster_rep = coalesce(cluster_rep, V1)) %>% select(cluster_rep, V2, mix)
+  
+  # cluster_ref %>% select(cluster_rep) %>% distinct %>% left_join((allflu_wgs_df %>% select(gid, src, label)), by = c("cluster_rep" = "gid")) %>%  with(., table(src, label)) %>% addmargins %>% print() # Cluster table
+  
+  # Save reference set of which sequences belong to which cluster
+  cluster_ref %>% rename(gid = V2) %>% write.csv(paste0("E:\\Working\\ai_for_ai\\S3\\data\\full\\holdout_clusters\\", gsub("wgs_|cluster.tsv", "", clusterset), "members.csv"))
+  
+  # Save reference set of cluster-representative sequence characteristics
+  cluster_ref %>% select(cluster_rep, mix) %>% distinct %>% 
+    left_join(allflu_wgs_df %>% select(gid, src, label, subtype, date),  by = c("cluster_rep" = "gid")) %>% 
+    write.csv(paste0("E:\\Working\\ai_for_ai\\S3\\data\\full\\holdout_clusters\\", gsub("wgs_|cluster.tsv", "", clusterset), "labels.csv"))
+  
+  # # Plot cluster dates
+  # g2 <- cluster_ref %>% select(cluster_rep) %>% distinct %>% 
+  #   left_join(allflu_wgs_df %>% select(gid, src, label, subtype, date), by = c("cluster_rep" = "gid")) %>%
+  #   filter(!is.na(date) & date > as.Date("1990-01-01")) %>%
+  #   add_count(subtype, name = "sub_n") %>%
+  #   filter(subtype %in% c("H1N1", "H3N8", "H4N6", "H5N1", "H5N2", "H5N6", "H6N2", "H7N3", "H7N4", "H7N9", "H9N2", "H10N7", "H10N8")) %>%
+  #   ggplot(aes(x = as.Date(date), fill = subtype)) +
+  #   geom_histogram(position = "stack", binwidth=365) +
+  #   scale_fill_manual(values = rev(c(RColorBrewer::brewer.pal(12, "Paired"), "black"))) +
+  #   #scale_x_date(limits = c(as.Date("1990-01-01"), as.Date("2022-12-31"))) +
+  #   scale_x_date(date_breaks = "1 year", date_labels =  "%y") +
+  #   facet_grid(rows = vars(label), cols = vars(src), scales = "free_y")
+  # 
+  # ggsave(paste0("S3\\figures_tables\\time_dist_clusters_", minseqid_param*100, "_", C_param*10, ".png"), plot = g2, width = 18, height = 6)
+}
+
+# # Read cluster ref back in
+# cluster_ref <-  read.csv("S3\\data\\full\\cluster_rep_labels.csv")
 
 ##########################################
 # Matrix plot of cluster representatives #
@@ -540,6 +595,68 @@ legend(
   legend = cluster_cds_wgs_df$label %>% unique() %>% sort(), fill = c("grey80", "gray10"), ncol = 1
 )
 dev.off()
+
+####################################################################
+# Save chosen clusters protein-by-protein for genome mapping later #
+####################################################################
+
+seqs_to_save <- read.csv(paste0("S3\\data\\full\\holdout_clusters\\full_70_7_labels.csv")) %>% 
+  filter(label == "zoon")
+
+nrow(seqs_to_save)
+
+for(focgene in c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")){
+  
+  # Save nuc sequences for alignment and mapping
+  nuc_temp <- seqs_to_save %>% 
+    select(cluster_rep) %>% 
+    left_join(allflu_nuc_df, by = c("cluster_rep" = "gid")) %>%
+    mutate(gene = case_when(gene == "MP" ~ "M1",
+                            gene == "NS" ~ "NS1",
+                            TRUE ~ gene)) %>%
+    filter(gene == focgene)
+  
+  nuc <- nuc_temp$string %>% DNAStringSet()
+  names(nuc) <- nuc_temp$cluster_rep
+  writeXStringSet(nuc, filepath = paste0("S3\\data\\full\\mapping\\nuc\\zoon_clusterreps_",focgene,".FASTA"))
+  rm(nuc_temp, nuc)
+  
+  # Save cds sequences for alignment and mapping
+  cds_temp <- seqs_to_save %>%
+    select(cluster_rep) %>%
+    left_join(allflu_cds_df, by = c("cluster_rep" = "gid")) %>%
+    filter(gene == focgene)
+  
+  cds <- cds_temp$string %>% DNAStringSet()
+  names(cds) <- cds_temp$cluster_rep
+  writeXStringSet(cds, filepath = paste0("S3\\data\\full\\mapping\\cds\\zoon_clusterreps_",focgene,".FASTA"))
+  rm(cds_temp, cds)
+  
+  # Save prot sequences for alignment and mapping 
+  prot_temp <- seqs_to_save %>%
+    select(cluster_rep) %>%
+    left_join(bind_rows(GISAID_avian_prot_df, GISAID_human_prot_df, NCBI_avian_prot_df, NCBI_human_prot_df), by = c("cluster_rep" = "gid")) %>%
+    filter(gene == focgene)
+  
+  prot_strings <- c(readAAStringSet("S3\\data\\full\\prot\\GISAID_avian_prot.FASTA"),
+                    readAAStringSet("S3\\data\\full\\prot\\GISAID_human_prot.FASTA"),
+                    readAAStringSet("S3\\data\\full\\prot\\NCBI_avian_prot.FASTA"),
+                    readAAStringSet("S3\\data\\full\\prot\\NCBI_human_prot.FASTA"))
+  
+  prot_temp <- left_join(prot_temp,
+                         data.frame(string = prot_strings %>% as.character(use.names=FALSE),
+                                    fastahead = names(prot_strings)))
+
+  prot <- prot_temp$string %>% AAStringSet()
+  names(prot) <- prot_temp$cluster_rep
+  writeXStringSet(prot, filepath = paste0("S3\\data\\full\\mapping\\prot\\zoon_clusterreps_",focgene,".FASTA"))
+  rm(prot_temp, prot, prot_strings)
+  
+}
+
+
+
+
 
 
 

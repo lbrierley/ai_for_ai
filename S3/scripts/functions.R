@@ -54,7 +54,7 @@ process_NCBI_seq <- function(x, label, type){
       mutate(gene = case_when(
         segment == 1 & grepl("\\|PB2\\|", fastahead) ~ "PB2",                  # Attempt to assign based on fasta header first
         segment == 2 & grepl("\\|PB1-F2\\|", fastahead)  ~ "PB1-F2",                              
-        segment == 2 & grepl("\\|PB1\\|", fastahead) ~ "PB1",                                                  
+        segment == 2 & grepl("\\|PB1\\|", fastahead) ~ "PB1",  
         segment == 3 & grepl("\\|PA-X\\|", fastahead) ~ "PA-X",         
         segment == 3 & grepl("\\|PA\\|", fastahead) ~ "PA",                                                  
         segment == 4 & grepl("\\|HA\\|", fastahead) ~ "HA",
@@ -65,7 +65,8 @@ process_NCBI_seq <- function(x, label, type){
         segment == 8 & grepl("\\|NS2\\|", fastahead) ~ "NS2",          
         segment == 8 & grepl("\\|NS1\\|", fastahead) ~ "NS1" ,      
         segment == 1 ~ "PB2",
-        segment == 2 & length < 500  ~ "PB1-F2",                               # Else distinguish PB1-F2 based on size
+        segment == 2 & !!type == "cds" & length < 500  ~ "PB1-F2",               # Else distinguish PB1-F2 based on size
+        segment == 2 & !!type == "prot" & length < 166  ~ "PB1-F2",              # Else distinguish PB1-F2 based on size        
         segment == 2 ~ "PB1",                                                  # Else set to PB1
         segment == 3 & grepl("(gb|.*\\:.*\\,).*)",fastahead) ~ "PA-X",         # Distinguish PA-X based on joining ORFs
         segment == 3 ~ "PA",                                                   # Else set to PA
@@ -79,8 +80,9 @@ process_NCBI_seq <- function(x, label, type){
       )) 
   }
   
-  if(type == "nuc"|type == "cds"){
+  if (type == "nuc"|type == "cds"){
     df %<>% filter(!(grepl("\\|N40\\||\\|M42\\|", fastahead)))
+    
   }
   
   return(df)

@@ -45,12 +45,13 @@ codon_ref <- data.frame(aminoacid = Biostrings::GENETIC_CODE) %>%
 # Do you want to load previously calculated features data instead of re-calculating?
 load_prev_calcs <- TRUE
 
+# Cluster parameters
+cluster_minseqid <- c(0.60, 0.70, 0.80)
+cluster_C <- c(0.6, 0.7, 0.8)
 
-#######################################################################################################################
-
-
-# Set length filters for segment nucleotide sequences and coding sequences
-
+# Holdout subtypes
+holdout_zoon <- c("H7N9", "H5N1", "H9N2", "H5N6", "H10N8", "H7N3", "H3N8", "H7N7", "H7N4")
+holdout_nz <- c("H4N6", "H16N3", "H4N8", "H8N4")
 
 ###############
 # Run scripts #
