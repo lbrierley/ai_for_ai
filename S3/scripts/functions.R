@@ -93,9 +93,18 @@ process_GISAID_seq <- function(x, label, type){
                    length = x %>% width()) 
   
   if (type == "nuc"){
-    df %<>% tidyr::separate(title, sep = "\\|", into = c("title", "UID", "subtype", "null", "date", "INSDC", "accession", "title2", "gene", "segment"), extra = "drop")
+    df %<>% separate_wider_regex(title, patterns = c(title = ".*?", "\\|",
+                                                     UID = ".*?", "\\|",
+                                                     subtype = ".*?", "\\|",
+                                                     null = ".*?", "\\|",
+                                                     date = ".*?", "\\|",
+                                                     INSDC = ".*?", "\\|",
+                                                     accession = ".*?", "\\|",
+                                                     title2 = ".*", "\\|",
+                                                     gene = ".*?", "\\|",
+                                                     segment = ".*?"))
   } else if (type == "prot"){
-    df %<>% tidyr::separate(title, sep = "\\|", into = c("title", "UID", "subtype", "null", "date", "protINSDC", "protaccession", "gene"), extra = "drop")  
+    df %<>% tidyr::separate_wider_delim(title, delim = "|", names = c("title", "UID", "subtype", "null", "date", "protINSDC", "protaccession", "gene"), too_many = "drop")  
   } else {
     stop("invalid type (must be 'nuc' or 'prot')")
   }

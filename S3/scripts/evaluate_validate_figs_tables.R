@@ -340,7 +340,7 @@ fig_results_subtype_raw <- bestmodels_raw %>%
   ggplot(aes(x = subtype, y = zoon, colour = label)) +
   geom_jitter(alpha = 0.4, width = 0.2) +
   geom_text(data = bestmodels %>% mutate(focgene = factor(focgene)), aes(label = featset, y = 0.95, x = 12.5, colour = "black"), size = 2.5, colour = "black") +
-  geom_hline(data = bestmodels %>% mutate(focgene = factor(focgene)), aes(yintercept = threshold), linetype = "dashed", colour = "gray30", linewidth = 1.2) +
+  geom_hline(data = bestmodels %>% mutate(focgene = factor(focgene)), aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", colour = "gray30", linewidth = 1.2) +
   facet_wrap(vars(focgene), nrow = 4) +
   theme_bw() +
   ylab("p(zoonotic)") +
@@ -386,9 +386,9 @@ ggsave(paste0("S3\\figures_tables\\fig_results_subtype_raw_",results_date,".png"
 # Predictions for individual sequences
 
 stacked_raw <- read.csv("S3/analysis/stack_subtypeacc_raw.csv") %>%
-  bind_cols(allflu_wgs_ref %>%  filter(subtype %in% holdout_zoon & label == "hzoon"|subtype %in% holdout_nz) %>% arrange(subtype) %>% select(-X, -label, -subtype)) %>%
+  bind_cols(allflu_wgs_ref %>% filter((subtype %in% holdout_zoon & label == "zoon")|(subtype %in% holdout_nz)) %>% arrange(subtype) %>% select(-X, -label, -subtype)) %>%
   left_join(allflu_wgs_ref %>%
-              filter(subtype %in% holdout_zoon & label == "hzoon"|subtype %in% holdout_nz) %>%
+              filter(subtype %in% holdout_zoon & label == "zoon"|subtype %in% holdout_nz) %>%
               count(subtype)) %>%
   mutate(subtype = case_when(n < 10 ~ "rare subtypes (< 10)",
                              TRUE ~ subtype),
@@ -396,15 +396,16 @@ stacked_raw <- read.csv("S3/analysis/stack_subtypeacc_raw.csv") %>%
 
 stacked_raw %>% filter(label == "nz") %>% arrange(-hzoon) %>% head
 
-fig_results_subtype_raw <- stacked_raw %>%
+fig_results_stack_raw <- stacked_raw %>%
   ggplot(aes(x = subtype, y = log(hzoon), colour = label)) +
   geom_jitter(alpha = 0.4, width = 0.2) +
-  geom_hline(aes(yintercept = log(line$threshold)), linetype = "dashed", color = "gray30", linewidth = 1.2) +
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", linewidth = 1.2) +
   theme_bw() +
   ylab("log(p(zoonotic))") +
   xlab("Subtype") +
   guides(color = "none")
 
+ggsave(paste0("S3\\figures_tables\\fig_results_stack_raw_",results_date,".png"), plot = fig_results_stack_raw, width = 10, height = 5.5)
 
 # What models are being selected?
 

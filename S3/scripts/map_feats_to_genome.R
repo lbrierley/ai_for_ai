@@ -21,6 +21,11 @@ varimp %>% arrange(AUC_loss)
 varimp %>% group_by(focgene) %>% summarise(mean = mean(AUC_loss)) %>% arrange(mean)
 varimp %>% group_by(feat) %>% summarise(mean = mean(AUC_loss)) %>% arrange(mean)
 
+# could plot these by prot..
+varimp %>%
+  ggplot(aes(x = focgene, y = AUC_loss)) +
+  geom_boxplot(alpha = 0.9) +
+  theme_bw()
 
 # # Test with IRAT seqs
 # irat <- readDNAStringSet(file = "S3\\data\\full\\GISAID_irat_nuc.fasta")
