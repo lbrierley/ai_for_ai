@@ -32,7 +32,9 @@ varimp %>%
 
 x <- readDNAStringSet(file = "S3\\data\\full\\mapping\\nuc\\zoon_clusterreps_PB2.FASTA")
 
-## DO I NEED TO ALIGN TO A REFERENCE?
+## DO I NEED TO ALIGN TO A REFERENCE? JB: prob not
+
+## JB: MAFFT is the best aligner
 
 # CorrectFrameshifts needed, then AlignTranslation(x, readingFrame = 1)
 

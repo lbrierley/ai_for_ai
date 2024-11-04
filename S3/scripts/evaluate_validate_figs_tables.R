@@ -8,6 +8,29 @@ library(magrittr)
 library(ggplot2)
 
 
+# Data figs
+
+# Fig S1
+S1 <- allflu_wgs_df %>%
+  mutate(label = case_when(
+    label == "nz" ~ "avian",
+    label == "zoon" ~ "zoonotic",
+  )) %>%  
+  filter(!is.na(date) & date > as.Date("1990-01-01")) %>%
+  add_count(subtype, name = "sub_n") %>%
+  filter(sub_n > 750 | subtype %in% c("H3N8", "H5N1", "H5N6", "H7N3", "H7N4", "H7N9", "H9N2", "H10N8")) %>%
+  ggplot(aes(x = as.Date(date), fill = subtype)) +
+  geom_histogram(position = "stack", binwidth=365) +
+  scale_fill_manual(values = rev(c(RColorBrewer::brewer.pal(12, "Paired"), "black"))) +
+  scale_x_date(limits = c(as.Date("1990-01-01"), as.Date("2022-12-31")), date_labels =  "%Y") +
+  facet_grid(rows = vars(label), cols = vars(src), scales = "free_y") +
+  theme_bw() +
+  xlab("Date") +
+  ylab("Frequency")
+
+ggsave("S3\\figures_tables\\time_dist_wgs.png", plot = S1, width = 14, height = 6)
+
+
 # Set options
 results_date <- "16_02_24"
 method = "xgb"
@@ -385,7 +408,7 @@ ggsave(paste0("S3\\figures_tables\\fig_results_subtype_raw_",results_date,".png"
 
 # Predictions for individual sequences
 
-stacked_raw <- read.csv("S3/analysis/stack_subtypeacc_raw.csv") %>%
+stacked_raw <- read.csv("S3/analysis/stack_weight_subtypeacc_raw.csv") %>%
   bind_cols(allflu_wgs_ref %>% filter((subtype %in% holdout_zoon & label == "zoon")|(subtype %in% holdout_nz)) %>% arrange(subtype) %>% select(-X, -label, -subtype)) %>%
   left_join(allflu_wgs_ref %>%
               filter(subtype %in% holdout_zoon & label == "zoon"|subtype %in% holdout_nz) %>%
@@ -399,17 +422,29 @@ stacked_raw %>% filter(label == "nz") %>% arrange(-hzoon) %>% head
 fig_results_stack_raw <- stacked_raw %>%
   ggplot(aes(x = subtype, y = log(hzoon), colour = label)) +
   geom_jitter(alpha = 0.4, width = 0.2) +
-  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", linewidth = 1.2) +
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_weight_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", lwd = 1.2) +
   theme_bw() +
   ylab("log(p(zoonotic))") +
   xlab("Subtype") +
   guides(color = "none")
 
-ggsave(paste0("S3\\figures_tables\\fig_results_stack_raw_",results_date,".png"), plot = fig_results_stack_raw, width = 10, height = 5.5)
+ggsave(paste0("S3\\figures_tables\\fig_results_stack_weight_raw_",results_date,".png"), plot = fig_results_stack_raw, width = 10, height = 5.5)
+
+fig_results_stack_raw_p01 <- stacked_raw %>%
+  ggplot(aes(x = subtype, y = (hzoon), colour = label)) +
+  geom_jitter(alpha = 0.4, width = 0.2) +
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_weight_results.csv") %>% pull(threshold)), linetype = "dashed", color = "gray30", lwd = 1.2) +
+  theme_bw() +
+  ylab("p(zoonotic)") +
+  xlab("Subtype") +
+  guides(color = "none")
+
+ggsave(paste0("S3\\figures_tables\\fig_results_stack_weight_raw_",results_date,"_p01.png"), plot = fig_results_stack_raw_p01, width = 10, height = 5.5)
+
 
 # What models are being selected?
 
-stacked_coef <- read.csv("S3/analysis/stack_coef.csv") %>%
+stacked_coef <- read.csv("S3/analysis/stack_weight_coef.csv") %>%
   select(-X) %>%
   filter(param != "(Intercept)" & param != "lambda")
 
@@ -440,7 +475,7 @@ mod_mag %>% left_join(mod_count) %>% dplyr::slice(1:20)
 
 mod_mag %>% left_join(mod_count) %>%
   separate_wider_delim(param, delim = "_", names = c("method", "feattype", "feat", "focgene")) %>%
-  write.csv("S3/analysis/stack_coef_table.csv")
+  write.csv("S3/analysis/stack_weight_coef_table.csv")
 
 
 # Variable importance (RF for now)

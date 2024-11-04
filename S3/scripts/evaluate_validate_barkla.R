@@ -176,33 +176,4 @@ result_all %>%
   write.table(file=paste0("results_", results_date, ".csv"), 
               sep=',', row.names=F, col.names=T)
 
-# # Calculate variable importance
-
-# foreach (cluster_set = "70_7") %:% 
-# foreach (featset = list.files(path = "mlready") %>% gsub("allflu_|_pt.*.rds", "", .) %>% unique(),
-# .packages = c("caret", "dplyr","ranger")) %dopar% {
-
-# lapply(c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2"), function(focgene)
-
-# # Load in ML model list
-# lapply(readRDS(paste0("/users/lbrier/results_", results_date, "\\", cluster_set, "\\", method, "_list_", featset, "_pt_", focgene, ".rds")),
-# function(x)
-# varImp(x)$importance %>% rownames_to_column("name") %>% mutate(Overall = Overall/100) %>% rename(relGini = Overall)
-# ) %>% 
-# bind_rows() %>% 
-
-# ## NOTE THAT THIS RESULTS IN SOME HOLDOUTS HAVING LESS THAN FULL FEATURE SETS, IF A FEATURE WAS CONSTANT IT WAS REMOVED
-# ## COULD FIND A WAY TO BIND THESE BACK IN AS ZEROES
-
-# mutate(focgene = focgene)
-
-# ) %>% 
-# bind_rows %>%
-# write.table(file=paste0("varimp_", results_date, "_", featset, ".csv"), 
-# sep=',', row.names=F, col.names=T)
-# }
-
-# ## Select which variables to calculate partial dependence for
-# # vars_to_pd <- varimp_order[1:4]
-
 stopCluster(cl)

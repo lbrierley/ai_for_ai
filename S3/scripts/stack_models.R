@@ -55,8 +55,6 @@ model_files <- list.files(path = "S3/analysis", pattern = ".rds", recursive = TR
 
 model_files <- model_files[c(1,11)] 
 
-irat_df <- read.csv("S3/data/irat/cdc_irat.csv") %>% filter(incomplete != "Y")
-
 coefs <- read.csv("S3/analysis/stack_coef.csv") %>% filter(param != "(Intercept)" & param != "lambda")
 
 # Set up result list
@@ -124,28 +122,9 @@ result <- foreach (subtypepicked = c("H4N8","H5N1")) %do% {
                 arrange(gid),
               .)
   
-  # Read in EVERY feature set of EVERY protein for CDC IRAT (53184 features)
-  
-  iratfeats <- purrr::map(list.files(path = "S3\\data\\irat\\mlready", full.names = TRUE),
-                          function (x) 
-                            readRDS(x) %>%
-                            select(-any_of(c("segment", "cds_id", "enc", "GC_content"))) %>%
-                            rename_with(~paste(., gsub(".*_pt_|.rds", "", x), sep = "_"), -c(gid)) %>%
-                            arrange(gid) %>%
-                            filter(gid %in% irat_df$gid)      # Only use IRAT where full genome sequences (possibly allow partial sequences later, but would need to impute or similar before modelling)
-  ) %>% 
-    purrr::list_cbind(name_repair = "unique_quiet") %>%
-    select(-contains("gid..")) %>%
-    bind_cols(irat_df %>% 
-                arrange(gid),
-              .)
-  
   element <- list(main = data.frame(hzoon = predict(plr_stack, newdata=allfeats, type = "prob"), 
                                     label = allfeats$label,
                                     subtype = subtypepicked),
-                  irat = data.frame(hzoon = predict(plr_stack, newdata=iratfeats, type = "prob"),
-                                    rawpred = predict(plr_stack, newdata=iratfeats),
-                                    gid = irat_df$gid),
                   coef = coef(plr_stack$ens_model$finalModel, 
                               s = plr_stack$ens_model$finalModel$lambdaOpt) %>% 
                     as.matrix %>% 
@@ -155,7 +134,7 @@ result <- foreach (subtypepicked = c("H4N8","H5N1")) %do% {
                     mutate(subtype = subtypepicked))
   
   saveRDS(plr_stack, file=paste0("S3/analysis/stacks/stack_", subtypepicked, ".rds"))
-  rm(model_list, plr_stack, allfeats, iratfeats)
+  rm(model_list, plr_stack, allfeats)
   gc()
   
   return(element)
@@ -164,15 +143,12 @@ result <- foreach (subtypepicked = c("H4N8","H5N1")) %do% {
 # stopCluster(cl)
 
 result_all <- result %>% purrr::transpose() %>% .[["main"]] %>% bind_rows
-result_irat <- result %>% purrr::transpose() %>% .[["irat"]] %>% bind_rows %>% group_by(gid) %>%    
-  summarise_at(vars("hzoon"), list(med = median, upper = ~quantile(., probs = 0.25), lower = ~quantile(., probs = 0.75)))
 
 ROC = roc(response = result_all$label,
           predictor = result_all$hzoon,
           direction = ">")
 
 result_all %<>% mutate(pred = factor(ifelse(hzoon > coords(ROC, "best", best.method="closest.topleft")$threshold, "hzoon", "nz")))
-result_irat %<>% mutate(pred = factor(ifelse(med > coords(ROC, "best", best.method="closest.topleft")$threshold, "hzoon", "nz")))
 
 write.csv(result_all, file=paste0("S3\\analysis\\stack_subtypeacc_raw.csv"))
 
@@ -189,7 +165,4 @@ line <- bind_cols(threshold = coords(ROC, "best", best.method="closest.topleft")
 result_coefs <- result %>% purrr::transpose() %>% .[["coef"]] %>% bind_rows
 
 write.csv(line, "S3/analysis/stack_results.csv")
-write.csv(result_irat, "S3/analysis/stack_irat.csv")
 write.csv(result_coefs, "S3/analysis/stack_coef.csv")
-
-saveRDS(result %>% purrr::transpose() %>% .[["irat"]], "S3/analysis/result_irat_raw.rds")

@@ -8,7 +8,7 @@ library(caretEnsemble)
 list.files("S3\\data\\ext\\", pattern = ".fasta", ignore.case=TRUE) %>% gsub("GISAID_|NCBI_|_nuc|_cds|_prot|.fasta|.FASTA", "", .) %>% unique
 
 # Define seqs to be used
-set <- "dairyc"
+set <- "bat"
 
 ################################
 # Read-in and process metadata #
@@ -16,11 +16,10 @@ set <- "dairyc"
 
 # Read-in and construct summary df, tidy up where known to be mislabelled
 # Nucleotide sequences of segments
-g_nuc <- process_GISAID_seq(x = readSet(file = paste0("S3\\data\\ext\\GISAID_", set, "_nuc.fasta")), label = set, type = "nuc")
+v_nuc <- process_NV_seq(x = readSet(file = paste0("S3\\data\\ext\\NCBI_", set, "_nuc.fasta")), label = set, type = "nuc")
 
 # Coding sequences for proteins
-g_orfs <- g_nuc %>% pull(string) %>% lapply(bind_ORF) %>% bind_rows() # Create GISAID coding sequences from transcripts
-g_cds <- g_nuc %>% bind_cols(g_orfs) %>% rowwise %>% mutate(string = substr(string, start, end)) %>% as.data.frame
+v_cds <- process_NV_seq(x = readSet(file =paste0("S3\\data\\ext\\NCBI_", set, "_cds.fasta")), label = set, type = "cds")
 
 # Clean names of protein sequence FASTA files and resave for iFeatureOmega
 files <- list.files(path = "S3\\data\\ext\\", pattern = "prot.fasta", full.names = TRUE)
@@ -28,15 +27,15 @@ for(i in 1:length(files)){
   prot_fasta_name_clean(files[i])
 }
 
-g_prot <- process_GISAID_seq(x = readSet(file = paste0("S3\\data\\ext\\GISAID_", set, "_prot.fasta")), label = set, type = "prot")
+v_prot <- process_GISAID_seq(x = readAAStringSet(file = paste0("S3\\data\\ext\\NCBI_", set, "_prot.fasta")), label = set, type = "prot")
 
 ##################################################
 # Process nucleotide, coding sequences, proteins #
 ##################################################
 
-nuc_df <- g_nuc
+nuc_df <- v_nuc
 
-cds_df <- g_cds %>%  # Relabel GISAID genes to reflect likely ORF captured (M1 for MP, NS1 for NS), filter out NCBI genes not present in GISAID (M2, NS2, PA-X, PB1-F2)
+cds_df <- v_cds %>%  # Relabel GISAID genes to reflect likely ORF captured (M1 for MP, NS1 for NS), filter out NCBI genes not present in GISAID (M2, NS2, PA-X, PB1-F2)
   mutate(gene = case_when(
     gene == "MP" ~ "M1",
     gene == "NS" ~ "NS1",
@@ -47,7 +46,7 @@ cds_df <- g_cds %>%  # Relabel GISAID genes to reflect likely ORF captured (M1 f
   mutate(cds_id = accession) %>%
   select(-INSDC, -accession)
 
-prot_df <- g_prot %>%
+prot_df <- v_prot %>%
   mutate(gene = case_when(
     gene == "MP" ~ "M1",
     gene == "NS" ~ "NS1",
@@ -178,7 +177,7 @@ pred <- lapply(list.files("S3\\analysis\\stacks\\", pattern = ".rds", full.names
                             stack = gsub("S3\\\\analysis\\\\stacks\\\\stack_|.rds", "", x),
                             hzoon = predict(readRDS(x), newdata=ext_test, type = "prob"),
                             gid = ext_test$gid) %>%
-                 left_join(g_nuc %>% select(UID, date) %>% distinct, by = c("gid" = "UID")) 
+                 left_join(v_nuc %>% select(UID, date) %>% distinct, by = c("gid" = "UID")) 
                
                
 ) %>%

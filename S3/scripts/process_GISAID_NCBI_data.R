@@ -44,10 +44,10 @@ meta_ref <- bind_rows(
 )
 
 # # Clean names of protein sequence FASTA files and resave for iFeatureOmega
-# files <- list.files(path = "S3\\data\\full\\prot\\", pattern = "prot.FASTA", full.names = TRUE)
-# for(i in 1:length(files)){
-#  fasta_name_clean(files[i])
-# }
+files <- list.files(path = "S3\\data\\full\\prot\\", pattern = "prot.FASTA", full.names = TRUE)
+for(i in 1:length(files)){
+ prot_fasta_name_clean(files[i])
+}
 
 #############################################################
 # Process whole genome sequences, i.e. full-length segments #
@@ -145,15 +145,21 @@ allflu_nuc_df %<>%
 
 # Plot whole genome sequence dates
 g1 <- allflu_wgs_df %>%
+  mutate(label = case_when(
+    label == "nz" ~ "avian",
+    label == "zoon" ~ "zoonotic",
+  )) %>%  
   filter(!is.na(date) & date > as.Date("1990-01-01")) %>%
   add_count(subtype, name = "sub_n") %>%
   filter(sub_n > 750 | subtype %in% c("H3N8", "H5N1", "H5N6", "H7N3", "H7N4", "H7N9", "H9N2", "H10N8")) %>%
   ggplot(aes(x = as.Date(date), fill = subtype)) +
   geom_histogram(position = "stack", binwidth=365) +
   scale_fill_manual(values = rev(c(RColorBrewer::brewer.pal(12, "Paired"), "black"))) +
-  #scale_x_date(limits = c(as.Date("1990-01-01"), as.Date("2022-12-31"))) +
-  scale_x_date(date_breaks = "1 year", date_labels =  "%y") +
-  facet_grid(rows = vars(label), cols = vars(src), scales = "free_y")
+  scale_x_date(limits = c(as.Date("1990-01-01"), as.Date("2022-12-31")), date_labels =  "%Y") +
+  facet_grid(rows = vars(label), cols = vars(src), scales = "free_y") +
+  theme_bw() +
+  xlab("Date") +
+  ylab("Frequency")
 
 ggsave("S3\\figures_tables\\time_dist_wgs.png", plot = g1, width = 18, height = 6)
 
@@ -298,17 +304,17 @@ allflu_cds_df %<>%
 #############################
 
 # Read in from fasta files to generate metadata for purpose of linking and identifying proteins/segments
-GISAID_avian_prot_df <- process_GISAID_seq(x = readSet(file = "S3\\data\\full\\prot\\GISAID_avian_prot.fasta"), 
+GISAID_avian_prot_df <- process_GISAID_seq(x = readAAStringSet(file = "S3\\data\\full\\prot\\GISAID_avian_prot.fasta"), 
                                            label = "nz", type = "prot")
 
-GISAID_human_prot_df <- process_GISAID_seq(x = readSet(file = "S3\\data\\full\\prot\\GISAID_human_prot.fasta"), 
+GISAID_human_prot_df <- process_GISAID_seq(x = readAAStringSet(file = "S3\\data\\full\\prot\\GISAID_human_prot.fasta"), 
                                            label = "zoon", type = "prot")
 
-NCBI_avian_prot_df <- process_NCBI_seq(x = readSet(file = "S3\\data\\full\\prot\\NCBI_avian_prot.fasta"), label = "nz", type = "prot") %>% 
+NCBI_avian_prot_df <- process_NCBI_seq(x = readAAStringSet(file = "S3\\data\\full\\prot\\NCBI_avian_prot.fasta"), label = "nz", type = "prot") %>% 
   select(-string, -gid) %>%
   left_join(allflu_nuc_df %>% filter(src == "NCBI") %>% select(gid, accession), by = "accession") # Use pre-made gids (from nucleotide sequences) to define which prot sequences belong to which wgs
 
-NCBI_human_prot_df <- process_NCBI_seq(x = readSet(file = "S3\\data\\full\\prot\\NCBI_human_prot.fasta"), label = "zoon", type = "prot") %>% 
+NCBI_human_prot_df <- process_NCBI_seq(x = readAAStringSet(file = "S3\\data\\full\\prot\\NCBI_human_prot.fasta"), label = "zoon", type = "prot") %>% 
   select(-string, -gid) %>%
   left_join(allflu_nuc_df %>% filter(src == "NCBI") %>% select(gid, accession), by = "accession") # Use pre-made gids (from nucleotide sequences) to define which prot sequences belong to which wgs
 
@@ -505,7 +511,7 @@ if(load_prev_calcs == FALSE) {
 # Select clustering and associated labels for ML models #
 #########################################################
 
-for(clusterset in list.files(path = "E:\\Working\\ai_for_ai\\S3\\data\\full\\nuc\\", pattern = "*.tsv")){
+for(clusterset in list.files(path = "H:\\Working\\ai_for_ai\\S3\\data\\full\\nuc\\", pattern = "*70_7_cluster.tsv")){
   
   # Read in clustering from Mmseq2 and select indicative sequences: select random zoonotic if zoonotic in cluster, else select centroid
   cluster_ref <- read.table(paste0("S3\\data\\full\\nuc\\", clusterset), sep = '\t', quote = "\"",  encoding="UTF-8", comment.char = '@', header = FALSE)

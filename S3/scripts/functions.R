@@ -150,6 +150,47 @@ process_GISAID_seq <- function(x, label, type){
   return(df)
 }
 
+process_NV_seq <- function(x, label, type){
+  df <- data.frame(title = x %>% names(), 
+                   length = x %>% width()) 
+  
+  if (type == "nuc"){
+    df %<>% tidyr::separate(title, sep = "\\|", into = c("title", "subtype", "date", "accession", "segment"), extra = "drop")
+  } else if (type == "cds"){
+    df %<>% tidyr::separate(title, sep = "\\|", into = c("title", "subtype", "date", "accession", "segment"), extra = "drop")
+  } else if (type == "prot"){
+    df %<>% tidyr::separate(title, sep = "\\|", into = c("title", "subtype", "date", "accession", "segment"), extra = "drop")  
+  } else {
+    stop("invalid type (must be 'nuc', 'cds', or 'prot')")
+  }
+  
+  df %<>%
+    mutate(
+      accession = gsub("\\:.*","",accession),
+      gene = case_when(
+        segment == 1 ~ "PB2",                  # Assign based on segment field as should be pre-filtered on NCBI Virus to genes of interest
+        segment == 2 ~ "PB1",
+        segment == 3 ~ "PA",
+        segment == 4 ~ "HA",
+        segment == 5 ~ "NP",
+        segment == 6 ~ "NA",
+        segment == 7 ~ "M1",
+        segment == 8 ~ "NS1"),
+      label = label,
+      src = "NCBI",
+      title = gsub("Influenza A virus \\(", "", title),
+      title = gsub(") .*", "", title),
+      title = gsub("_.*|\\/[1-2][0-9][0-9][0-9].*", "", title),
+      gid = title,
+      fastahead = x %>% names() %>% gsub(" ", "_", .),
+      string = x %>% as.character(use.names=FALSE),
+    ) %>%
+    relocate(fastahead, string, .after = last_col())
+  
+  return(df)
+  
+}
+
 bind_ORF <- function(x) {
   
   df <- findORFs(x, startCodon="ATG") %>%
@@ -363,12 +404,21 @@ calc_composition_bias <- function(df, codonpairs = FALSE){
   return(df)
 }
 
-fasta_name_clean <- function(file){
-  fasta <- readSet(file = file)
+nuc_fasta_name_clean <- function(filename){
+  fasta <- readSet(file = filename)
   names(fasta) <- names(fasta) %>% 
     gsub(" ", "_", .) %>% # Replace spaces with underscores, else iFeaturesOmega will not parse FASTA properly
     gsub(">", "", .)      # Remove special characters (that should not be present anyway), else iFeaturesOmega will not parse FASTA properly
-  writeXStringSet(fasta, file = file)
+  writeXStringSet(fasta, file = filename)
+  rm(fasta)
+}
+
+prot_fasta_name_clean <- function(filename){
+  fasta <- readAAStringSet(file = filename)
+  names(fasta) <- names(fasta) %>% 
+    gsub(" ", "_", .) %>% # Replace spaces with underscores, else iFeaturesOmega will not parse FASTA properly
+    gsub(">", "", .)      # Remove special characters (that should not be present anyway), else iFeaturesOmega will not parse FASTA properly
+  writeXStringSet(fasta, file = filename)
   rm(fasta)
 }
 

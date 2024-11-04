@@ -28,11 +28,11 @@ n_cds <- process_NCBI_seq(x = readSet(file =paste0("S3\\data\\irat\\NCBI_", set,
 # Clean names of protein sequence FASTA files and resave for iFeatureOmega
 files <- list.files(path = "S3\\data\\irat\\", pattern = "prot.fasta", full.names = TRUE, ignore.case = TRUE)
 for(i in 1:length(files)){
-  fasta_name_clean(files[i])
+  prot_fasta_name_clean(files[i])
 }
 
-g_prot <- process_GISAID_seq(x = readSet(file = paste0("S3\\data\\irat\\GISAID_", set, "_prot.fasta")), label = set, type = "prot")
-n_prot <- process_NCBI_seq(x = readSet(file = paste0("S3\\data\\irat\\NCBI_", set, "_prot.fasta")), label = set, type = "prot") %>%
+g_prot <- process_GISAID_seq(x = readAAStringSet(file = paste0("S3\\data\\irat\\GISAID_", set, "_prot.fasta")), label = set, type = "prot")
+n_prot <- process_NCBI_seq(x = readAAStringSet(file = paste0("S3\\data\\irat\\NCBI_", set, "_prot.fasta")), label = set, type = "prot") %>%
   select(-string, -gid) %>%
   left_join(n_nuc %>% select(gid, title) %>% distinct, by = "title")
 

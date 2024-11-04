@@ -63,6 +63,12 @@ result <- list()
 result <- foreach (subtypepicked = holdouts,
                    .packages = c("caret","caretEnsemble","e1071","matrixStats","magrittr","pROC","janitor","dplyr","tidyr","purrr","forcats","stringr","tibble","kernlab","xgboost","ranger","glmnet")) %dopar% {
                      
+                     # Determine weights
+                     labels <- read.csv(paste0("holdout_clusters/ex_", subtypepicked, "_", cluster_sets, "_labels.csv")) %>% 
+                       select(cluster_rep, label) %>%
+                       mutate(label = factor(case_when(label == "zoon" ~ "hzoon", label == "nz" ~ "nz")) # Rearrange factor levels for better compatibility with model functions
+                       )
+                     
                      # Read ALL models, each holding out the given subtype (requires large workspace)
                      model_list <- purrr::map(model_files %>% as.list(), 
                                               function (x) readRDS(x) %>% .[[which(holdouts == subtypepicked)]])
@@ -86,6 +92,9 @@ result <- foreach (subtypepicked = holdouts,
                                               method = "glmnet",      # Can change as needed
                                               preProc = c("center", "scale"),
                                               metric = "ROC",      # Can change to sensitivity if needed
+                                              weights = ifelse(labels$label == "nz",
+                                                               (1/table(labels$label)[2]) * 0.5,
+                                                               (1/table(labels$label)[1]) * 0.5),
                                               trControl = trainControl(
                                                 method = "repeatedcv", 
                                                 number = 5,
@@ -118,6 +127,9 @@ result <- foreach (subtypepicked = holdouts,
                                              method = "glmnet",      # Can change as needed
                                              preProc = c("center", "scale"),
                                              metric = "ROC",      # Can change to sensitivity if needed
+                                             weights = ifelse(labels$label == "nz",
+                                                              (1/table(labels$label)[2]) * 0.5,
+                                                              (1/table(labels$label)[1]) * 0.5),
                                              trControl = trainControl(
                                                method = "repeatedcv", 
                                                number = 5,
@@ -167,7 +179,7 @@ result <- foreach (subtypepicked = holdouts,
                                        bind_rows(data.frame(s1 = plr_stack$ens_model$finalModel$lambdaOpt, param = "lambda")) %>%
                                        mutate(subtype = subtypepicked))
                      
-                     saveRDS(plr_stack, file=paste0("stacks/stack_", subtypepicked, ".rds"))
+                     saveRDS(plr_stack, file=paste0("stacks_weight/stack_", subtypepicked, ".rds"))
                      rm(model_list, plr_stack, allfeats)
                      gc()
                      
@@ -184,7 +196,7 @@ ROC = roc(response = result_all$label,
 
 result_all %<>% mutate(pred = factor(ifelse(hzoon > coords(ROC, "best", best.method="closest.topleft")$threshold, "hzoon", "nz")))
 
-write.csv(result_all, "stack_subtypeacc_raw.csv")
+write.csv(result_all, "stack_weight_subtypeacc_raw.csv")
 
 matrix_test <- confusionMatrix(data = result_all$pred, 
                                reference = result_all$label, 
@@ -198,5 +210,5 @@ line <- bind_cols(threshold = coords(ROC, "best", best.method="closest.topleft")
 
 result_coefs <- result %>% purrr::transpose() %>% .[["coef"]] %>% bind_rows
 
-write.csv(line, "stack_results.csv")
-write.csv(result_coefs, "stack_coef.csv")
+write.csv(line, "stack_weight_results.csv")
+write.csv(result_coefs, "stack_weight_coef.csv")
