@@ -1,0 +1,26 @@
+name: zoonosis-risk-ml
+channels:
+ - conda-forge
+dependencies:
+ - r-base=4.2
+ - r-tidyverse
+ - r-ggmosaic 
+ - r-ggmosaic
+ - r-gplots
+ - r-kableExtra
+ - r-knitr
+ - r-lattice
+ - r-magrittr
+ - r-patchwork
+ - r-pbapply
+ - r-plotly
+ - r-rrentrez
+ - r-reshape2
+ - r-rmarkdown
+ - r-R.utils
+ - r-seqinr
+ - r-stringr
+ - r-tidyverse
+ - r-VennDiagram
+ - r-XML
+ 
