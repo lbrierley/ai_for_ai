@@ -60,36 +60,36 @@ holdout_nz <- c("H4N6", "H16N3", "H4N8", "H8N4")
 header(verbose, "Loading custom functions", padding=0)
 source("S3\\scripts\\functions.R" )
 
-header(verbose, "Extracting and processing sequence data", padding=0)
-
-
-# Save data needed for ML
-save(allcov_df, cov_spikes_df, cov_wg_df, file = paste0("cov_ML_dfs_", format(Sys.time(), "%d_%m_%y"), ".RData"))
-#save(allcov_df, cov_wg_df, file = paste0("cov_ML_dfs_noframeshift_", format(Sys.time(), "%d_%m_%y"), ".RData"))
-save(cov_S1_df, file = paste0("cov_S1_dfs_", format(Sys.time(), "%d_%m_%y"), ".RData"))
-save(cov_env_df, file = paste0("cov_env_dfs_", format(Sys.time(), "%d_%m_%y"), ".RData"))
-
-# Render lab books
-render("C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\data_summary.Rmd", 
-       output_file="C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\data_summary.html")
-
-render("C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\pca_output_spikes.Rmd", 
-       output_file="C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\pca_output_spikes.html")
-
-render("C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\pca_output_wgs.Rmd", 
-       output_file="C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\pca_output_wgs.html")
-
-render("C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_vector_output_spikes.Rmd", 
-       output_file="C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_vector_output_spikes.html")
-
-render("C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_vector_output_wgs.Rmd",
-       output_file="C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_vector_output_wgs.html")
-
-# render("C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_vector_output_wgs_noframeshift.Rmd",
-#        output_file="C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_vector_output_wgs_noframeshift.html")
-
-render("C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_matrix_output_spikes.Rmd", 
-       output_file="C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_matrix_output_spikes.html")
-
-# render("C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_matrix_output_wgs.Rmd", 
-#        output_file="C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_matrix_output_wgs.html")
+# header(verbose, "Extracting and processing sequence data", padding=0)
+# 
+# 
+# # Save data needed for ML
+# save(allcov_df, cov_spikes_df, cov_wg_df, file = paste0("cov_ML_dfs_", format(Sys.time(), "%d_%m_%y"), ".RData"))
+# #save(allcov_df, cov_wg_df, file = paste0("cov_ML_dfs_noframeshift_", format(Sys.time(), "%d_%m_%y"), ".RData"))
+# save(cov_S1_df, file = paste0("cov_S1_dfs_", format(Sys.time(), "%d_%m_%y"), ".RData"))
+# save(cov_env_df, file = paste0("cov_env_dfs_", format(Sys.time(), "%d_%m_%y"), ".RData"))
+# 
+# # Render lab books
+# render("C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\data_summary.Rmd", 
+#        output_file="C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\data_summary.html")
+# 
+# render("C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\pca_output_spikes.Rmd", 
+#        output_file="C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\pca_output_spikes.html")
+# 
+# render("C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\pca_output_wgs.Rmd", 
+#        output_file="C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\pca_output_wgs.html")
+# 
+# render("C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_vector_output_spikes.Rmd", 
+#        output_file="C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_vector_output_spikes.html")
+# 
+# render("C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_vector_output_wgs.Rmd",
+#        output_file="C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_vector_output_wgs.html")
+# 
+# # render("C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_vector_output_wgs_noframeshift.Rmd",
+# #        output_file="C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_vector_output_wgs_noframeshift.html")
+# 
+# render("C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_matrix_output_spikes.Rmd", 
+#        output_file="C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_matrix_output_spikes.html")
+# 
+# # render("C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_matrix_output_wgs.Rmd", 
+# #        output_file="C:\\Users\\Liam\\Desktop\\CoV Genomics\\markdown\\ml_matrix_output_wgs.html")
