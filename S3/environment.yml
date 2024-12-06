@@ -1,6 +1,7 @@
 name: zoonosis-risk-ml
 channels:
  - conda-forge
+ - bioconda
 dependencies:
  - r-base=4.2
  - r-tidyverse
@@ -23,4 +24,6 @@ dependencies:
  - r-tidyverse
  - r-VennDiagram
  - r-XML
- 
+ - bioconductor-Biostrings
+ - bioconductor-coRdon
+ - bioconductor-ORFik
