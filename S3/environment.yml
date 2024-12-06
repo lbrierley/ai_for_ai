@@ -14,7 +14,7 @@ dependencies:
  - r-patchwork
  - r-pbapply
  - r-plotly
- - r-rrentrez
+ - r-rentrez
  - r-reshape2
  - r-rmarkdown
  - r-R.utils
