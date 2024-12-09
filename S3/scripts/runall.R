@@ -4,16 +4,16 @@ source("S3\scripts\startup.R", echo = TRUE)
 # Defined functions for processing sequence data
 source("S3\scripts\functions.R", echo = TRUE)
 
-# Process all training sequence data
-source("S3\scripts\process_GISAID_NCBI_data.R", echo = TRUE)
+# # Process all training sequence data
+# source("S3\scripts\process_GISAID_NCBI_data.R", echo = TRUE)
 
 # protein_feat_extract.py
 # protein_params.json
 # Generate protein features
 
-# # Define same folds in 5-fold cross validation for use across all ML algorithms
-# source("S3\scripts\create_training_fold_indices.R", echo = TRUE)
-# 
+# Define same folds in 5-fold cross validation for use across all ML algorithms
+source("S3\scripts\create_training_fold_indices.R", echo = TRUE)
+ 
 # # Construct ML models for each feature set-gene combination. XGboost split into 5 scripts as longer run time.
 # source("S3\scripts\build_glmnet_vectorised_barkla.R", echo = TRUE)
 # source("S3\scripts\build_rf_vectorised_barkla.R", echo = TRUE)
