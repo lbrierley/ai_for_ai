@@ -22,11 +22,10 @@ dependencies:
  - r-R.utils
  - r-seqinr
  - r-stringr
+ - r-taxizedb
  - r-tidyverse
  - r-VennDiagram
  - r-XML
  - bioconductor-Biostrings
  - bioconductor-coRdon
  - bioconductor-ORFik
- - pip:
-     - "--editable=git+https://github.com/ropensci/taxizedb@master"
