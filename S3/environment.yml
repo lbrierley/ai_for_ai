@@ -28,3 +28,5 @@ dependencies:
  - bioconductor-Biostrings
  - bioconductor-coRdon
  - bioconductor-ORFik
+ - pip:
+     - "--editable=git+https://github.com/ropensci/taxizedb@master"
