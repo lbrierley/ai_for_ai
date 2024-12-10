@@ -4,8 +4,8 @@
 #SBATCH --time=3-00:00:00
 #SBATCH --partition=walkerpass
 #SBATCH --job-name=zoonosis-risk-ai-modelling
-#SBATCH --error=batch_scripts/full_analysis.%J.stderr
-#SBATCH --output=batch_scripts/full_analysis.%J.stdout
+#SBATCH --error=S3/batch_scripts/full_analysis.%J.stderr
+#SBATCH --output=S3/batch_scripts/full_analysis.%J.stdout
 
 
 eval "$(conda shell.bash hook)"
