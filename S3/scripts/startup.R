@@ -58,7 +58,7 @@ holdout_nz <- c("H4N6", "H16N3", "H4N8", "H8N4")
 ###############
 
 header(verbose, "Loading custom functions", padding=0)
-source("S3\\scripts\\functions.R" )
+source("S3/scripts/functions.R" )
 
 header(verbose, "Extracting and processing sequence data", padding=0)
 
