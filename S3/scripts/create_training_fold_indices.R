@@ -4,9 +4,9 @@
 
 holdout_cluster_grid <- list.files(path = "S3/data/full/holdout_clusters", pattern = "labels.csv") %>%
   gsub("ex_|_labels.csv", "", .) %>%
-  str_split(., "_") %>% 
+  stringr::str_split(., "_") %>% 
   do.call(rbind.data.frame, .) %>%
-  set_colnames(c("subtype", "minseqid", "C"))
+  magrittr::set_colnames(c("subtype", "minseqid", "C"))
 
 cluster_set <- "70_7"
 
