@@ -6,7 +6,7 @@ rm(list=ls())
 
 library(Biostrings)
 library(coRdon)
-#library(ggbiplot)
+library(janitor)
 library(ggmosaic)
 library(gplots)
 library(kableExtra)
@@ -27,6 +27,7 @@ library(taxizedb)
 library(tidyverse)
 library(VennDiagram)
 library(XML)
+library(caret)
 
 ###############
 # Set options #
