@@ -26,6 +26,8 @@ dependencies:
  - r-tidyverse
  - r-VennDiagram
  - r-XML
+ - r-caret
+ - r-janitor
  - bioconductor-Biostrings
  - bioconductor-coRdon
  - bioconductor-ORFik
