@@ -29,7 +29,7 @@ holdout_cluster_grid <- list.files(path = "S3/data/full/holdout_clusters/", patt
   do.call(rbind.data.frame, .) %>%
   set_colnames(c("subtype", "minseqid", "C"))
 
-run_date <- "15_02_24"
+run_date <- format(Sys.time(), "%Y_%m_%d")
 
 dir.create(paste0("results_", run_date))
 
