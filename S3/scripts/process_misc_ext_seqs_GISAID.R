@@ -8,7 +8,7 @@ library(caretEnsemble)
 list.files("S3\\data\\ext\\", pattern = ".fasta", ignore.case=TRUE) %>% gsub("GISAID_|NCBI_|_nuc|_cds|_prot|.fasta|.FASTA", "", .) %>% unique
 
 # Define seqs to be used
-set <- "dairyc"
+set <- "pinnip"
 
 ################################
 # Read-in and process metadata #
@@ -28,7 +28,7 @@ for(i in 1:length(files)){
   prot_fasta_name_clean(files[i])
 }
 
-g_prot <- process_GISAID_seq(x = readSet(file = paste0("S3\\data\\ext\\GISAID_", set, "_prot.fasta")), label = set, type = "prot")
+g_prot <- process_GISAID_seq(x = readAAStringSet(file = paste0("S3\\data\\ext\\GISAID_", set, "_prot.fasta")), label = set, type = "prot")
 
 ##################################################
 # Process nucleotide, coding sequences, proteins #
@@ -186,6 +186,21 @@ pred <- lapply(list.files("S3\\analysis\\stacks\\", pattern = ".rds", full.names
 
 pred %>% write.csv(paste0("S3\\data\\ext\\preds_", set, "_raw.csv"), row.names=FALSE)
 
+pred_weight <- lapply(list.files("S3\\analysis\\stacks_weight\\", pattern = ".rds", full.names = TRUE),
+               function(x)
+                 
+                 data.frame(set = set,
+                            stack = gsub("S3\\\\analysis\\\\stacks_weight\\\\stack_|.rds", "", x),
+                            hzoon = predict(readRDS(x), newdata=ext_test, type = "prob"),
+                            gid = ext_test$gid) %>%
+                 left_join(g_nuc %>% select(UID, date) %>% distinct, by = c("gid" = "UID")) 
+               
+               
+) %>%
+  bind_rows
+
+pred_weight %>% write.csv(paste0("S3\\data\\ext\\preds_weight_", set, "_raw.csv"), row.names=FALSE)
+
 ## Simple plot for first visualisation
 # Point estimate for a given stack
 
@@ -209,6 +224,16 @@ pred %>%
   ylab("log(p(zoonotic))") +
   xlab("Date")
 
+pred_weight %>%
+  filter(stack == "H5N1") %>%
+  # filter(as.Date(date) > "2024-01-01") %>%
+  ggplot(aes(x = as.Date(date), y = hzoon)) +
+  geom_point(color = "#F8766d") +
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_weight_results.csv") %>% pull(threshold)), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
+  theme_bw() +
+  ylab("p(zoonotic)") +
+  xlab("Date")
+
 # Error bars over all stacks
 
 pred %>%
@@ -217,17 +242,29 @@ pred %>%
   summarise_at(vars("hzoon"), list(med = median, upper = ~quantile(., probs = 0.25), lower = ~quantile(., probs = 0.75))) %>%
   ggplot(aes(x = as.Date(date), y = log(med), ymin = log(upper), ymax = log(lower))) +
   geom_point(color = "#F8766d") +
-  geom_errorbar(alpha = 0.4, linewidth = 1.2, width=0, color = "#F8766d") +
+  geom_errorbar(alpha = 0.4, linewidth = 1.2, lwd = 1.2, width=0, color = "#F8766d") +
   geom_hline(aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
   theme_bw() +
   ylab("log(p(zoonotic))") +
+  xlab("Date")
+
+pred_weight %>%
+  group_by(gid, date) %>% 
+  # filter(as.Date(date) > "2024-01-01") %>%
+  summarise_at(vars("hzoon"), list(med = median, upper = ~quantile(., probs = 0.25), lower = ~quantile(., probs = 0.75))) %>%
+  ggplot(aes(x = as.Date(date), y = med, ymin = upper, ymax = lower)) +
+  geom_point(color = "#F8766d") +
+  geom_errorbar(alpha = 0.4, linewidth = 1.2, lwd = 1.2, width=0, color = "#F8766d") +
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_weight_results.csv") %>% pull(threshold)), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
+  theme_bw() +
+  ylab("p(zoonotic)") +
   xlab("Date")
 
 ######################
 # Figures and tables #
 ######################
 
-to_plot <- c("khm", "dairyc", "pinnip")
+to_plot <- c("khm", "dairyc", "pinnip", "misc")
 
 allpred <- purrr::map(list.files("S3\\data\\ext\\", pattern = "preds_.*.csv", full.names = TRUE),
                       function (x) 
@@ -264,7 +301,7 @@ allpred %>%
   geom_point(size = 4, alpha = 0.33) +
   scale_color_manual(values = c("#F8766D", "#7CAE00", "black", "#00BFC4", "#C77CFF")) +
   scale_fill_manual(values = c("#F8766D", "#7CAE00", "black", "#00BFC4", "#C77CFF")) +  
-  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", linewidth = 1.2) +
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
   theme_bw() +
   ylab("log(p(zoonotic))") +
   xlab("Date")
@@ -280,11 +317,74 @@ allpred %>%
   filter(as.Date(date) > "2023-01-01") %>%
   ggplot(aes(x = as.Date(date), y = log(med), ymin = log(upper), ymax = log(lower), color = host, fill = host)) +
   geom_point(size = 4, alpha = 0.3) +
-  geom_errorbar(alpha = 0.2, linewidth = 1.2, width=0) +
+  geom_errorbar(alpha = 0.2, linewidth = 1.2, lwd = 1.2, width=0) +
   scale_color_manual(values = c("#F8766D", "#7CAE00", "black", "#00BFC4", "#C77CFF")) +
   scale_fill_manual(values = c("#F8766D", "#7CAE00", "black", "#00BFC4", "#C77CFF")) +  
-  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", linewidth = 1.2) +
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
   theme_bw() +
   facet_wrap(. ~ set, scales="free_x", ncol=1) +
   ylab("log(p(zoonotic))") +
+  xlab("Date")
+
+
+## Weighted version
+
+allpred_weight <- purrr::map(list.files("S3\\data\\ext\\", pattern = "preds_weight_.*.csv", full.names = TRUE),
+                      function (x) 
+                        read.csv(x)) %>% 
+  bind_rows
+
+# Manually set annotation labels based on external refs
+allpred_weight %<>% 
+  mutate(host = case_when(set == "pinnip" ~ "m",
+                          set == "dairyc" ~ "m",
+                          gid == "EPI_ISL_17394087" ~ "a",                                                                 # A/Red Tailed Hawk/ON/FAV-0473-4/2022
+                          gid %in% c("EPI_ISL_19162802", "EPI_ISL_19027114") ~ "zm",                                       # dairy cattle zoonoses: A/Michigan/90/2024, A/Texas/37/2024
+                          set == "khm" & gid %in% c("EPI_ISL_19033330", "EPI_ISL_327782", "EPI_ISL_321150") ~ "x",         # environmental seqs: A/Environment/Cambodia/i5T241WW2E/2024, A/environment/Cambodia/Z12CW7M3/2015, A/environment/Cambodia/Z2EP1e3W7M1/2015
+                          set == "khm" & gid %in% c("EPI_ISL_18543643", "EPI_ISL_18373263", "EPI_ISL_17069010", "EPI_ISL_18366401", "EPI_ISL_18543355", "EPI_ISL_17024123") ~ "za",  # avian zoonoses: A/Cambodia/2311257/2023, A/Cambodia/NPH230776/2023, A/Cambodia/2302009/2023, A/Cambodia/2310209/2023, A/Cambodia/KSH230332/2023, A/Cambodia/NPH230032/2023
+                          set == "khm" ~ "a")
+  ) %>%
+  mutate(set = case_when(gid %in% c("EPI_ISL_19162802", "EPI_ISL_19027114") ~ "dairyc",         # assign dairy cattle zoonoses to dairy cattle outbreak group
+                         TRUE ~ set)
+         
+  ) %>%
+  filter(set %in% to_plot)
+
+# Combi plot
+
+allpred_weight %>%
+  filter(stack == "H5N1") %>%   # select stack
+  mutate(host = case_when(host == "za" ~ "avian, human-isolated",
+                          host == "a" ~ "avian",
+                          host == "zm" ~ "mammal, human-isolated",
+                          host == "m" ~ "mammal",
+                          host == "x" ~ "environmental")) %>%
+  filter(as.Date(date) > "2023-01-01") %>%
+  ggplot(aes(x = as.Date(date), y = hzoon, color = host, fill = host, shape = set)) +
+  geom_point(size = 4, alpha = 0.33) +
+  scale_color_manual(values = c("#F8766D", "#7CAE00", "black", "#00BFC4", "#C77CFF")) +
+  scale_fill_manual(values = c("#F8766D", "#7CAE00", "black", "#00BFC4", "#C77CFF")) +  
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_weight_results.csv") %>% pull(threshold)), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
+  theme_bw() +
+  ylab("p(zoonotic)") +
+  xlab("Date")
+
+allpred_weight %>%
+  group_by(set, gid, date, host) %>% 
+  summarise_at(vars("hzoon"), list(med = median, upper = ~quantile(., probs = 0.25), lower = ~quantile(., probs = 0.75))) %>%
+  mutate(host = case_when(host == "za" ~ "avian, human-isolated",
+                          host == "a" ~ "avian",
+                          host == "zm" ~ "mammal, human-isolated",
+                          host == "m" ~ "mammal",
+                          host == "x" ~ "environmental")) %>%
+  filter(as.Date(date) > "2023-01-01") %>%
+  ggplot(aes(x = as.Date(date), y = med, ymin = upper, ymax = lower, color = host, fill = host)) +
+  geom_point(size = 4, alpha = 0.3) +
+  geom_errorbar(alpha = 0.2, linewidth = 1.2, lwd = 1.2, width=0) +
+  scale_color_manual(values = c("#F8766D", "#7CAE00", "black", "#00BFC4", "#C77CFF")) +
+  scale_fill_manual(values = c("#F8766D", "#7CAE00", "black", "#00BFC4", "#C77CFF")) +  
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_weight_results.csv") %>% pull(threshold)), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
+  theme_bw() +
+  facet_wrap(. ~ set, scales="free_x", ncol=1) +
+  ylab("p(zoonotic)") +
   xlab("Date")

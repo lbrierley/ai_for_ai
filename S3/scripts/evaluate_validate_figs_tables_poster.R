@@ -214,14 +214,12 @@ ggsave(paste0("S3\\figures_tables\\fig_results_stack_rawposter_",results_date,".
 pred_dairy <- read.csv("S3\\data\\ext\\preds_dairyc_raw.csv")
 pred_misc <- read.csv("S3\\data\\ext\\preds_misc_raw.csv") %>% filter(gid %in% c("EPI_ISL_19162802", "EPI_ISL_19027114"))
 
-## Simple plot for first visualisation
-
 fig_results_dairyc <- bind_rows(pred_dairy, pred_misc) %>%
   filter(stack == "H5N1") %>%                 # ONLY USE THE H5N1 STACK
   filter(as.Date(date) > "2024-01-01") %>%
   ggplot(aes(x = as.Date(date), y = log(hzoon), colour = set)) +
   geom_point(alpha = 0.8) +
-  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", linewidth = 1.2) +
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
   scale_color_manual(values = c("#C77CFF", "#F8766D")) +
 #  scale_y_continuous(limits = c(-5, -3)) +
   theme_bw() +
@@ -235,25 +233,50 @@ fig_results_dairyc <- bind_rows(pred_dairy, pred_misc) %>%
 
 ggsave(paste0("S3\\figures_tables\\fig_results_dairyc_poster_",results_date,".png"), plot = fig_results_dairyc, width = 4.5, height = 2.25)
 
+
+pred_dairy <- read.csv("S3\\data\\ext\\preds_weight_dairyc_raw.csv")
+pred_misc <- read.csv("S3\\data\\ext\\preds_weight_misc_raw.csv") %>% filter(gid %in% c("EPI_ISL_19162802", "EPI_ISL_19027114"))
+
+fig_results_dairyc <- bind_rows(pred_dairy, pred_misc) %>%
+  filter(stack == "H5N1") %>%                 # ONLY USE THE H5N1 STACK
+  filter(as.Date(date) > "2024-01-01") %>%
+  ggplot(aes(x = as.Date(date), y = hzoon, colour = set)) +
+  geom_point(alpha = 0.8) +
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold)), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
+  scale_color_manual(values = c("#C77CFF", "#F8766D")) +
+  #  scale_y_continuous(limits = c(-5, -3)) +
+  theme_bw() +
+  theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
+        legend.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
+        axis.title.x = element_text(size=10),
+        axis.title.y = element_text(size=10)) +
+  ylab("p(zoonotic)") +
+  xlab("Month") +
+  guides(color = "none")
+
+ggsave(paste0("S3\\figures_tables\\fig_results_dairyc_poster_weight_",results_date,".png"), plot = fig_results_dairyc, width = 4.5, height = 2.25)
+
+
 # Predictions for external set - CDC IRAT
 
+pred <- read.csv(paste0("S3\\data\\irat\\preds_", set, "_raw.csv"))
+pred_weight <- read.csv(paste0("S3\\data\\irat\\preds_weight_", set, "_raw.csv"))
 irat_df <- read.csv("S3/data/irat/cdc_irat.csv", fileEncoding="UTF-8-BOM") %>% filter(incomplete != "Y")
 
-result_irat <- read.csv("S3/analysis/stack_irat.csv")
-
-fig_results_cdc <- result_irat %>%
+fig_results_cdc_error <- pred %>%
   left_join(irat_df) %>%
+  group_by(gid, id, host, emergence) %>% 
+  summarise_at(vars("hzoon"), list(med = median, upper = ~quantile(., probs = 0.25), lower = ~quantile(., probs = 0.75))) %>%
   mutate(host = case_when(host == "za" ~ "avian, human-isolated",
                           host == "a" ~ "avian",
                           host == "zm" ~ "mammal, human-isolated",
                           host == "m" ~ "mammal")) %>%
-  ggplot(aes(x = emergence, xmin = emerge_lo, xmax = emerge_hi, y = log(med), ymin = log(upper), ymax = log(lower), color = host, fill = host, label = id)) +
-  #  geom_errorbarh(alpha = 0.4, linewidth = 1.2, height = 0) +
-  geom_errorbar(alpha = 0.4, lwd = 1.2, width=0) +
+  ggplot(aes(x = emergence, y = log(med), ymin = log(upper), ymax = log(lower), color = host, fill = host, label = id)) +
+  geom_errorbar(alpha = 0.4, lwd = 1.2, linewidth = 1.2, width=0) +
   geom_point() +
-  geom_text(hjust=-0.5, vjust=-0.5) +
-  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", lwd = 1.2) +
-  xlim(2.75,7.75) +
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
+  geom_text(hjust=-0.5, vjust=-0.2, show.legend  = FALSE) +
+  scale_x_continuous(limits = c(2.7, 7.7), expand = c(0,0)) +
   ylab("log(p(zoonotic))") +
   xlab("CDC IRAT emergence score") +
   guides(label = "none") +
@@ -263,9 +286,40 @@ fig_results_cdc <- result_irat %>%
         axis.title.y = element_text(size=10),
         legend.title=element_blank(),
         legend.margin=margin(t = 0, unit='cm'),
-        legend.position = c(.852,.79))
+        legend.position = c(.14,.87),
+        legend.key.size = unit(0.4, 'cm'))
 
-ggsave(paste0("S3\\figures_tables\\fig_results_cdc_poster_",results_date,".png"), plot = fig_results_cdc, width = 6.5, height = 3)
+ggsave(paste0("S3\\figures_tables\\fig_results_cdc_poster.png"), plot = fig_results_cdc_error, width = 6.5, height = 3)
+
+fig_results_cdc_error_weight <- pred_weight %>%
+  left_join(irat_df) %>%
+  group_by(gid, id, host, emergence) %>% 
+  summarise_at(vars("hzoon"), list(med = median, upper = ~quantile(., probs = 0.25), lower = ~quantile(., probs = 0.75))) %>%
+  mutate(host = case_when(host == "za" ~ "avian, human-isolated",
+                          host == "a" ~ "avian",
+                          host == "zm" ~ "mammal, human-isolated",
+                          host == "m" ~ "mammal")) %>%
+  ggplot(aes(x = emergence, y = med, ymin = upper, ymax = lower, color = host, fill = host, label = id)) +
+  geom_errorbar(alpha = 0.4, lwd = 1.2, linewidth = 1.2, width=0) +
+  geom_point() +
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold)), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
+  geom_text(hjust=-0.5, vjust=-0.2, show.legend  = FALSE) +
+  scale_x_continuous(limits = c(2.7, 7.7), expand = c(0,0)) +
+  ylab("p(zoonotic))") +
+  xlab("CDC IRAT emergence score") +
+  guides(label = "none") +
+  theme_bw() +
+  theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
+        axis.title.x = element_text(size=10),
+        axis.title.y = element_text(size=10),
+        legend.title=element_blank(),
+        legend.margin=margin(t = 0, unit='cm'),
+        legend.position = c(.14,.87),
+        legend.key.size = unit(0.4, 'cm'))
+
+ggsave(paste0("S3\\figures_tables\\fig_results_cdc_poster_weight.png"), plot = fig_results_cdc_error_weight, width = 6.5, height = 3)
+
+
 
 
 

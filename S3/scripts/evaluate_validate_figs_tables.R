@@ -422,7 +422,7 @@ stacked_raw %>% filter(label == "nz") %>% arrange(-hzoon) %>% head
 fig_results_stack_raw <- stacked_raw %>%
   ggplot(aes(x = subtype, y = log(hzoon), colour = label)) +
   geom_jitter(alpha = 0.4, width = 0.2) +
-  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_weight_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", lwd = 1.2) +
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_weight_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
   theme_bw() +
   ylab("log(p(zoonotic))") +
   xlab("Subtype") +
@@ -433,7 +433,7 @@ ggsave(paste0("S3\\figures_tables\\fig_results_stack_weight_raw_",results_date,"
 fig_results_stack_raw_p01 <- stacked_raw %>%
   ggplot(aes(x = subtype, y = (hzoon), colour = label)) +
   geom_jitter(alpha = 0.4, width = 0.2) +
-  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_weight_results.csv") %>% pull(threshold)), linetype = "dashed", color = "gray30", lwd = 1.2) +
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_weight_results.csv") %>% pull(threshold)), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
   theme_bw() +
   ylab("p(zoonotic)") +
   xlab("Subtype") +

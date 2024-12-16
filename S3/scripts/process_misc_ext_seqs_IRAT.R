@@ -196,6 +196,21 @@ pred <- lapply(list.files("S3\\analysis\\stacks\\", pattern = ".rds", full.names
 
 pred %>% write.csv(paste0("S3\\data\\irat\\preds_", set, "_raw.csv"), row.names=FALSE)
 
+pred_weight <- lapply(list.files("S3\\analysis\\stacks_weight\\", pattern = ".rds", full.names = TRUE),
+               function(x)
+                 
+                 data.frame(set = set,
+                            stack = gsub("S3\\\\analysis\\\\stacks_weight\\\\stack_|.rds", "", x),
+                            hzoon = predict(readRDS(x), newdata=irat_test, type = "prob"),
+                            gid = irat_test$gid) %>%
+                 left_join(g_nuc %>% select(UID, date) %>% distinct, by = c("gid" = "UID")) 
+               
+               
+) %>%
+  bind_rows
+
+pred_weight %>% write.csv(paste0("S3\\data\\irat\\preds_weight_", set, "_raw.csv"), row.names=FALSE)
+
 ## Simple plot for first visualisation
 # Point estimate for a given stack
 
@@ -208,68 +223,3 @@ pred %>% write.csv(paste0("S3\\data\\irat\\preds_", set, "_raw.csv"), row.names=
 #                  direction = ">") %>%
 #   pROC::coords("best", best.method="closest.topleft") %>%
 #   .$threshold
-
-
-######################
-# Figures and tables #
-######################
-
-pred <- read.csv(paste0("S3\\data\\irat\\preds_", set, "_raw.csv"))
-irat_df <- read.csv("S3/data/irat/cdc_irat.csv", fileEncoding="UTF-8-BOM") %>% filter(incomplete != "Y")
-
-fig_results_cdc <- pred %>%
-  left_join(irat_df) %>%
-  filter(stack == subtype|!(subtype %in%  c("H7N9", "H5N1", "H9N2", "H5N6", "H10N8", "H7N3", "H3N8", "H7N7", "H7N4", "H4N6", "H16N3", "H4N8", "H8N4"))) %>%   # If a subtype is a holdout subtype, use the respective holdout stack model, else use all stack models.
-  group_by(gid, id, host, emergence) %>% 
-  summarise_at(vars("hzoon"), list(med = median, upper = ~quantile(., probs = 0.25), lower = ~quantile(., probs = 0.75))) %>%
-  mutate(host = case_when(host == "za" ~ "avian, human-isolated",
-                          host == "a" ~ "avian",
-                          host == "zm" ~ "mammal, human-isolated",
-                          host == "m" ~ "mammal")) %>%
-  ggplot(aes(x = emergence, y = log(med), ymin = log(upper), ymax = log(lower), color = host, fill = host, label = id)) +
-  #  geom_errorbarh(alpha = 0.4, linewidth = 1.2, height = 0) +
-  geom_errorbar(alpha = 0.4, lwd = 1.2, width=0) +
-  geom_point() +
-  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", lwd = 1.2) +
-  geom_text(hjust=-0.5, vjust=-0.5, show.legend  = FALSE) +
-  scale_x_continuous(limits = c(2.7, 7.7), expand = c(0,0)) +
-  ylab("log(p(zoonotic))") +
-  xlab("CDC IRAT emergence score") +
-  guides(label = "none") +
-  theme_bw() +
-  theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
-        axis.title.x = element_text(size=10),
-        axis.title.y = element_text(size=10),
-        legend.title=element_blank(),
-        legend.margin=margin(t = 0, unit='cm'),
-        legend.position = c(.852,.79))
-
-
-fig_results_cdc_error <- pred %>%
-  left_join(irat_df) %>%
-  group_by(gid, id, host, emergence) %>% 
-  summarise_at(vars("hzoon"), list(med = median, upper = ~quantile(., probs = 0.25), lower = ~quantile(., probs = 0.75))) %>%
-  mutate(host = case_when(host == "za" ~ "avian, human-isolated",
-                          host == "a" ~ "avian",
-                          host == "zm" ~ "mammal, human-isolated",
-                          host == "m" ~ "mammal")) %>%
-  ggplot(aes(x = emergence, y = log(med), ymin = log(upper), ymax = log(lower), color = host, fill = host, label = id)) +
-  #  geom_errorbarh(alpha = 0.4, linewidth = 1.2, height = 0) +
-  geom_errorbar(alpha = 0.4, lwd = 1.2, width=0) +
-  geom_point() +
-  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", lwd = 1.2) +
-  geom_text(hjust=-0.5, vjust=-0.2, show.legend  = FALSE) +
-  scale_x_continuous(limits = c(2.7, 7.7), expand = c(0,0)) +
-  ylab("log(p(zoonotic))") +
-  xlab("CDC IRAT emergence score") +
-  guides(label = "none") +
-  theme_bw() +
-  theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
-        axis.title.x = element_text(size=10),
-        axis.title.y = element_text(size=10),
-        legend.title=element_blank(),
-        legend.margin=margin(t = 0, unit='cm'),
-        legend.position = c(.14,.87),
-        legend.key.size = unit(0.4, 'cm'))
-
-ggsave(paste0("S3\\figures_tables\\fig_results_cdc_poster.png"), plot = fig_results_cdc_error, width = 6.5, height = 3)
