@@ -31,6 +31,7 @@ dependencies:
  - r-doparallel
  - r-glmnet
  - r-ranger
+ - r-kernlab
  - bioconductor-Biostrings
  - bioconductor-coRdon
  - bioconductor-ORFik
