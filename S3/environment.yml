@@ -30,6 +30,7 @@ dependencies:
  - r-janitor
  - r-doparallel
  - r-glmnet
+ - r-ranger
  - bioconductor-Biostrings
  - bioconductor-coRdon
  - bioconductor-ORFik
