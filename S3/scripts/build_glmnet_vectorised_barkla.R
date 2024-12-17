@@ -105,7 +105,7 @@ glmnet_fun <- function(subtype){
 
 foreach (cluster_set = cluster_sets) %:% 
   foreach (focgene = c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")) %:% 
-  foreach (featset = list.files(path = "mlready", pattern = focgene) %>% gsub("allflu_|_pt.*.rds", "", .),
+  foreach (featset = list.files(path = "S3/data/full/mlready", pattern = focgene) %>% gsub("allflu_|_pt.*.rds", "", .),
            .packages = c("caret",
                          "dplyr",
                          "janitor",
