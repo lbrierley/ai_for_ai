@@ -28,6 +28,7 @@ dependencies:
  - r-XML
  - r-caret
  - r-janitor
+ - r-doparallel
  - bioconductor-Biostrings
  - bioconductor-coRdon
  - bioconductor-ORFik
