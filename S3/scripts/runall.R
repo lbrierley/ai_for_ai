@@ -13,7 +13,7 @@ source("S3/scripts/functions.R", echo = TRUE)
 
 # Construct ML models for each feature set-gene combination. XGboost split into 5 scripts as longer run time.
 source("S3/scripts/build_glmnet_vectorised_barkla.R", echo = TRUE)
-# source("S3/scripts/build_rf_vectorised_barkla.R", echo = TRUE)
+source("S3/scripts/build_rf_vectorised_barkla.R", echo = TRUE)
 # source("S3/scripts/build_svm_vectorised_barkla.R", echo = TRUE)
 # source("S3/scripts/build_svmlin_vectorised_barkla.R", echo = TRUE)
 # source("S3/scripts/build_xgb_vectorised_barkla.R", echo = TRUE)
