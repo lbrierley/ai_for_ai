@@ -29,6 +29,7 @@ dependencies:
  - r-caret
  - r-janitor
  - r-doparallel
+ - r-glmnet
  - bioconductor-Biostrings
  - bioconductor-coRdon
  - bioconductor-ORFik
