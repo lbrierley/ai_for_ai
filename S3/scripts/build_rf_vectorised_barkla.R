@@ -31,7 +31,7 @@ holdout_cluster_grid <- list.files(path = "S3/data/full/holdout_clusters", patte
 
 run_date <- format(Sys.time(), "%Y_%m_%d")
 
-dir.create(paste0("results_", run_date))
+dir.create(paste0("results_", run_date), showWarnings = FALSE, recursive = TRUE)
 
 cluster_sets <- holdout_cluster_grid %>% 
   select(minseqid, C) %>% 
