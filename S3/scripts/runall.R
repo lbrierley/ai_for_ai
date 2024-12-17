@@ -1,9 +1,11 @@
+library(R.utils)
+
 # Load packages and set overall parameters
-R.utils::header(verbose, "Loading packages and define variables", padding=0)
+header(verbose, "Loading packages and define variables", padding=0)
 source("S3/scripts/startup.R", echo = TRUE)
 
 # Defined functions for processing sequence data
-R.utils::header(verbose, "Loading custom functions", padding=0)
+header(verbose, "Loading custom functions", padding=0)
 source("S3/scripts/functions.R", echo = TRUE)
 
 # # Process all training sequence data
@@ -15,7 +17,7 @@ source("S3/scripts/functions.R", echo = TRUE)
 # Generate protein features
 
 # Construct ML models for each feature set-gene combination. XGboost split into 5 scripts as longer run time.
-R.utils::header(verbose, "Train ML models", padding=0)
+header(verbose, "Train ML models", padding=0)
 source("S3/scripts/build_glmnet_vectorised_barkla.R", echo = TRUE)
 source("S3/scripts/build_rf_vectorised_barkla.R", echo = TRUE)
 source("S3/scripts/build_svm_vectorised_barkla.R", echo = TRUE)
