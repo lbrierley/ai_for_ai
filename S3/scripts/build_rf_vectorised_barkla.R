@@ -23,7 +23,7 @@ cl <- makePSOCKcluster(detectCores() - 1)
 registerDoParallel(cl)
 clusterSetRNGStream(cl, 1429)
 
-holdout_cluster_grid <- list.files(path = "S3/data/full/holdout_clusters/", pattern = "labels.csv") %>%
+holdout_cluster_grid <- list.files(path = "S3/data/full/holdout_clusters", pattern = "labels.csv") %>%
   gsub("ex_|_labels.csv", "", .) %>%
   str_split(., "_") %>% 
   do.call(rbind.data.frame, .) %>%
