@@ -53,6 +53,10 @@ cluster_C <- c(0.6, 0.7, 0.8)
 holdout_zoon <- c("H7N9", "H5N1", "H9N2", "H5N6", "H10N8", "H7N3", "H3N8", "H7N7", "H7N4")
 holdout_nz <- c("H4N6", "H16N3", "H4N8", "H8N4")
 
+run_date <- format(Sys.time(), "%Y_%m_%d")
+
+dir.create(paste0("results_", run_date), showWarnings = FALSE, recursive = TRUE)
+
 ###############
 # Run scripts #
 ###############
