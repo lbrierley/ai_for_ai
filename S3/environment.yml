@@ -32,6 +32,7 @@ dependencies:
  - r-glmnet
  - r-ranger
  - r-kernlab
+ - r-xgboost
  - bioconductor-Biostrings
  - bioconductor-coRdon
  - bioconductor-ORFik
