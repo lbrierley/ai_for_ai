@@ -24,7 +24,7 @@ library(xgboost)
 # registerDoParallel(cl)
 # clusterSetRNGStream(cl, 1429)
 
-holdout_cluster_grid <- list.files(path = "holdout_clusters/", pattern = "labels.csv") %>%
+holdout_cluster_grid <- list.files(path = "S3/data/full/holdout_clusters", pattern = "labels.csv") %>%
   gsub("ex_|_labels.csv", "", .) %>%
   str_split(., "_") %>% 
   do.call(rbind.data.frame, .) %>%
@@ -52,14 +52,14 @@ xgb_fun <- function(subtype){
   # Train models on each feature set on each protein #
   ####################################################
   
-  labels <- read.csv(paste0("holdout_clusters/ex_", subtype, "_", cluster_set, "_labels.csv")) %>% 
+  labels <- read.csv(paste0("S3/data/full/holdout_clusters/ex_", subtype, "_", cluster_set, "_labels.csv")) %>% 
     select(cluster_rep, label) %>%
     mutate(label = factor(case_when(label == "zoon" ~ "hzoon", label == "nz" ~ "nz")) # Rearrange factor levels for better compatibility with model functions
     )
   
   # Load feature sets for training data clusters, rename features to indicate gene/protein being modelled
   train <- left_join(labels,
-                     readRDS(paste0("/users/lbrier/mlready/allflu_", featset, "_pt_", focgene, ".rds")) %>% 
+                     readRDS(paste0("S3/data/full/mlready/allflu_", featset, "_pt_", focgene, ".rds")) %>% 
                        select(-any_of(c("segment", "cds_id", "enc", "GC_content"))),
                      by = c("cluster_rep" = "gid")) %>%
     rename_with(~paste(., focgene, sep = "_"), -c(cluster_rep, label))
@@ -111,7 +111,7 @@ xgb_fun <- function(subtype){
 
 foreach (cluster_set = cluster_sets) %:% 
   foreach (focgene = c("HA", "M1")) %:% 
-  foreach (featset = list.files(path = "mlready", pattern = focgene) %>% gsub("allflu_|_pt.*.rds", "", .),
+  foreach (featset = list.files(path = "S3/data/full/mlready", pattern = focgene) %>% gsub("allflu_|_pt.*.rds", "", .),
            .packages = c("caret",
                          "dplyr",
                          "janitor",
