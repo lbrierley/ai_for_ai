@@ -13,6 +13,7 @@ library(parallel)
 library(doParallel)
 library(foreach)
 library(glmnet)
+library(Rmpi)
 
 ####################################################################################
 # Options and global definitions used in all runs to keep training sets consistent #
