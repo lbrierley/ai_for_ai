@@ -33,6 +33,7 @@ dependencies:
  - r-ranger
  - r-kernlab
  - r-xgboost
+ - r-parallelly
  - bioconductor-Biostrings
  - bioconductor-coRdon
  - bioconductor-ORFik
