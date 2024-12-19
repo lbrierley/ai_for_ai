@@ -19,11 +19,11 @@ library(glmnet)
 ####################################################################################
 
 # Set parallelisation
-cat("Number of cores (detectCores) = ", parallel::detectCores(), "\n")
-cat("Number of cores (availableCores) = ", parallelly::availableCores(), "\n")
-cl <- makePSOCKcluster(detectCores() - 1)
+workers <- mpi.universe.size() - 1
+cat("Number of cores (detectCores) = ", workers, "\n")
+cl <- makeClusterMPI(workers)
 registerDoParallel(cl)
-clusterSetRNGStream(cl, 1429)
+# clusterSetRNGStream(cl, 1429)
 
 holdout_cluster_grid <- list.files(path = "S3/data/full/holdout_clusters", pattern = "labels.csv") %>%
   gsub("ex_|_labels.csv", "", .) %>%
