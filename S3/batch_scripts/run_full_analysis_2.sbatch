@@ -9,7 +9,7 @@
 #SBATCH --output=S3/batch_scripts/full_analysis.%J.stdout
 
 
-source ~/anaconda3/etc/profile.d/conda.sh
+source ~/miniconda3/etc/profile.d/conda.sh
 conda activate zoonosis-risk-ml 
 
 
