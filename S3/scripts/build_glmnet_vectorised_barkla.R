@@ -20,7 +20,7 @@ library(glmnet)
 
 # Set parallelisation
 workers <- mpi.universe.size() - 1
-cat("Number of cores (detectCores) = ", workers, "\n")
+cat("Number of workers = ", workers, "\n")
 cl <- makeClusterMPI(workers)
 registerDoParallel(cl)
 # clusterSetRNGStream(cl, 1429)
