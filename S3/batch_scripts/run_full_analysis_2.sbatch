@@ -8,7 +8,7 @@
 #SBATCH --output=S3/batch_scripts/full_analysis.%J.stdout
 
 
-eval "$(conda shell.bash hook)"
+source /hpspor01/tenant1/projects/zoonosis-risk-ai/miniconda3/etc/profile.d/conda.sh
 conda activate zoonosis-risk-ml
 
 
