@@ -27,6 +27,8 @@ library(tidyverse)
 library(VennDiagram)
 library(XML)
 library(caret)
+library(parallelly)
+library(Rmpi)
 
 ###############
 # Set options #
