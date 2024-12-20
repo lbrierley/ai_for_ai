@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH --n 96
+#SBATCH -n 96
 #SBATCH --ntasks-per-node=20
 #SBATCH --time=7-00:00:00
 #SBATCH --partition=walkerpass
