@@ -13,4 +13,3 @@ conda activate zoonosis-risk-ml
 
 
 mpirun -np 1 Rscript -e "source('S3/scripts/runall.R')"
-call MPI_Abort(MPI_COMM_WORLD, errcode, ierr)
