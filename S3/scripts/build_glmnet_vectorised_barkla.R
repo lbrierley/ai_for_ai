@@ -132,5 +132,4 @@ foreach (cluster_set = cluster_sets) %:%
   }
 
 stopCluster(cl)
-mpi.comm.disconnect()
 mpi.exit()
