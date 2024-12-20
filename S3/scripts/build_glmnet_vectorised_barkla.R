@@ -10,11 +10,9 @@ library(tidyr)
 library(forcats)
 library(stringr)
 library(parallel)
-library(parallelly)
 library(doParallel)
 library(foreach)
 library(glmnet)
-library(Rmpi)
 
 ####################################################################################
 # Options and global definitions used in all runs to keep training sets consistent #
@@ -133,4 +131,3 @@ foreach (cluster_set = cluster_sets) %:%
 
 stopCluster(cl)
 mpi.exit()
-stop("Killing the script as MPI has not terminated")
