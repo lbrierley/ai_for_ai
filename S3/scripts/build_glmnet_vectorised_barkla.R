@@ -23,7 +23,7 @@ library(Rmpi)
 # Set parallelisation
 workers <- mpi.universe.size() - 1
 cat("Number of workers = ", workers, "\n")
-cl <- parallel::makeCluster(workers, type = "MPI")
+cl <- parallelly::makeClusterMPI(workers, autoStop = TRUE)
 registerDoParallel(cl)
 # clusterSetRNGStream(cl, 1429)
 
