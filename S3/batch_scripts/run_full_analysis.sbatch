@@ -1,6 +1,6 @@
 #!/bin/sh
-#SBATCH --nodes=2
-#SBATCH --ntasks-per-node=32
+#SBATCH --n 96
+#SBATCH --ntasks-per-node=20
 #SBATCH --time=7-00:00:00
 #SBATCH --partition=walkerpass
 #SBATCH --job-name=zoonosis-risk-ai-modelling
