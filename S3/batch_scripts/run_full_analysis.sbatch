@@ -1,6 +1,6 @@
 #!/bin/sh
-#SBATCH -n 81
-#SBATCH --ntasks-per-node=20
+#SBATCH --nodes 1
+#SBATCH --ntasks-per-node=32
 #SBATCH --time=7-00:00:00
 #SBATCH --partition=walkerpass
 #SBATCH --job-name=zoonosis-risk-ai-modelling
@@ -16,7 +16,7 @@ echo =========================================================
 echo SLURM job: submitted  date = `date`      
 date_start=`date +%s`
 
-mpirun -np 1 Rscript -e "source('S3/scripts/runall.R')"
+Rscript S3/scripts/runall.R
 
 echo   
 echo ---------------                                           
