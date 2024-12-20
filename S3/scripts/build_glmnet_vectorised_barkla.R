@@ -133,3 +133,4 @@ foreach (cluster_set = cluster_sets) %:%
 
 stopCluster(cl)
 mpi.exit()
+stop("Killing the script as MPI has not terminated")
