@@ -31,3 +31,4 @@ echo =========================================================
 echo SLURM job: finished   date = `date`   
 echo Total run time : $hours Hours $minutes Minutes $seconds Seconds
 echo =========================================================  
+exit
