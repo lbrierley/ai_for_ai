@@ -6,7 +6,7 @@
 
 The aim of the project is to identify Avian Influenza strains with zoonotic potential - which are able to infect humans - using viral genomic sequence characteristics and machine learning. The project allows to monitor the risk of spillover of Avian Influenza from avian and mammal species to humans.
 
-The model used in this project has been developed by Dr Liam Brierley at the University of Glasgow. Dr Brierley has an Academic Honorary Contract with UKHSA.
+The model used in this project has been developed by [Dr Liam Brierley](https://www.gla.ac.uk/schools/infectionimmunity/staff/liambrierley/) at the University of Glasgow. Dr Brierley has an Academic Honorary Contract with UKHSA. This is a [link](https://vibelab.co.uk/) to Dr Brierley lab's page.
 
 The project contributes to 
 1. Strengthening pandemic preparedness and H5 monitoring thus ensuring the health and well being of the population.
