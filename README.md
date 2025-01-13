@@ -19,15 +19,15 @@ Project contact: [lorenzo.cattarino@ukhsa.gov.uk](mailto:lorenzo.cattarino@ukhsa
 To be able to run the code in this repository, you are strongly advised to use a High Performance Computer (HPC). The requirements for HPC and data access are:  
 
 1. Follow the instructions in this [page](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/HPC) to request access to the HPC.
-2. Once you are logged into the HPC (Zeus), navigate to the project space in `/data/projects/zoonosis-risk-ai`
+2. Once you are logged into the HPC (Zeus), navigate to the project directory in `/data/projects/zoonosis-risk-ai`
 3. The script for running the whole code routine is located in `S3/batch_scripts/run_full_analysis.sbatch`. This script contains also the specific resources required on the HPC for running the job. Follow the instruction in this [page](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/HPC) to familiarize yourself with HPC resources and to submit the script to the HPC.
-4. Request access to the project shared drive through this [LAMa agreement application](http://datascience.phe.gov.uk/Lama/SpecialProjects/SpecialProjectDetail?pro=X037&ver=1.0). The data have already been copied from this location to the HPC (so you do not need to do it) but it is advised that you request access to the space for future work and development. 
+4. Request access to the project shared drive through this [LAMa agreement application](http://datascience.phe.gov.uk/Lama/SpecialProjects/SpecialProjectDetail?pro=X037&ver=1.0). The data used in this project have already been copied from this location to the HPC (so you do not need to do it) but it is advised that you request access to the space for future work and development. 
 
 ## Data 
 
 The project uses publicly available viral DNA sequences from NCBI GenBank and GISAID. These viral sequences are derived from biological samples taken from human or animal hosts. The sequences are uploaded by individuals (usually researchers from academic institutions or government and non-government organizations) to platforms such as  NCBI GenBank and GISAID where they are available to anyone.
 
-The viral genome sequence data (raw sequences and processed outputs) are saved in the project's shared drive (*\\filepor10\DOP$\X037_AVI_GeneticMarkers*)
+The viral genome sequence data (raw sequences and processed outputs) are saved in the project's shared drive (*\\filepor10\DOP$\X037_AVI_GeneticMarkers*) and also in the project directory on the HPC.
  
 ## Guidance/Ground rules
 
