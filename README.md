@@ -19,9 +19,10 @@ Project contact: [lorenzo.cattarino@ukhsa.gov.uk](mailto:lorenzo.cattarino@ukhsa
 To be able to run the code in this repository, you are strongly advised to use a High Performance Computer (HPC). The requirements for HPC and data access are:  
 
 1. Follow the instructions in this [page](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/HPC) to request access to the HPC.
-2. Once you are logged into the HPC (Zeus), navigate to the project directory in `/data/projects/zoonosis-risk-ai`
-3. The script for running the whole code routine is located in `S3/batch_scripts/run_full_analysis.sbatch`. This script contains also the specific resources required on the HPC for running the job. Follow the instruction in this [page](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/HPC) to familiarize yourself with HPC resources and to submit the script to the HPC.
-4. Request access to the project shared drive through this [LAMa agreement application](http://datascience.phe.gov.uk/Lama/SpecialProjects/SpecialProjectDetail?pro=X037&ver=1.0). The data used in this project have already been copied from this location to the HPC (so you do not need to do it) but it is advised that you request access to the space for future work and development. 
+2. Once you are logged into the HPC (Zeus), navigate to the project directory `/data/projects/zoonosis-risk-ai` and GitHub repository `zoonosis-risk-ai-modelling` within.
+3. To be able to work with git from the HPC (i.e., pull code developed locally) you might need to configure a Secure Shell Protocol (SSH) connection. Follow the instructions [here](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/HPC#HPC-Cloningtherepo) to do that.
+4. The script for running the whole code routine is located in `S3/batch_scripts/run_full_analysis.sbatch`. This script contains also the specific resources required on the HPC for running the job. Follow the instruction in this [page](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/HPC) to familiarize yourself with HPC resources and to submit the script to the HPC. The `S3/batch_scripts/run_full_analysis.sbatch` script calls the conda environment (*zoonosis-risk-ml*) used for this project. The environment has already been set up using the `S3/environment.yml` file which contains the code dependencies (packages).
+5. Request access to the project shared drive through this [LAMa agreement application](http://datascience.phe.gov.uk/Lama/SpecialProjects/SpecialProjectDetail?pro=X037&ver=1.0). The data used in this project have already been copied from this location to the HPC (so you do not need to do it) but it is advised that you request access to the space for future work and development. 
 
 ## Data 
 
