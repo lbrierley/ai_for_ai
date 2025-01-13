@@ -8,7 +8,7 @@ The aim of the project is to identify Avian Influenza strains with zoonotic pote
 
 The model used in this project has been developed by [Dr Liam Brierley](https://www.gla.ac.uk/schools/infectionimmunity/staff/liambrierley/) at the University of Glasgow. Dr Brierley has an Academic Honorary Contract with UKHSA. This is a [link](https://vibelab.co.uk/) to Dr Brierley lab's page.
 
-The project contributes to 
+This project contributes to 
 1. Strengthening pandemic preparedness and H5 monitoring thus ensuring the health and well being of the population.
 2. Building key capabilities in AI and machine learning across the agency.
 
