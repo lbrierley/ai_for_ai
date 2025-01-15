@@ -51,7 +51,7 @@ holdout_nz <- c("H4N6", "H16N3", "H4N8", "H8N4")
 
 model_files <- list.files(pattern = ".rds", recursive = TRUE, full.names = TRUE) %>%
   .[grepl(cluster_sets, .)] %>%
-  .[grepl("results_1.*_02_24", .)]
+  .[grepl("results_2025_01_06", .)]
 
 # Set up result list
 result <- list()
