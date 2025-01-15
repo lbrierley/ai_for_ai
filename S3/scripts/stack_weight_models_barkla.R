@@ -78,7 +78,7 @@ result <- foreach (subtypepicked = holdouts,
                    .packages = c("caret","caretEnsemble","e1071","matrixStats","magrittr","pROC","janitor","dplyr","tidyr","purrr","forcats","stringr","tibble","kernlab","xgboost","ranger","glmnet")) %dopar% {
                      
                      # Determine weights
-                     labels <- read.csv(paste0("holdout_clusters/ex_", subtypepicked, "_", cluster_sets, "_labels.csv")) %>% 
+                     labels <- read.csv(paste0("S3/data/full/holdout_clusters/ex_", subtypepicked, "_", cluster_sets, "_labels.csv")) %>% 
                        select(cluster_rep, label) %>%
                        mutate(label = factor(case_when(label == "zoon" ~ "hzoon", label == "nz" ~ "nz")) # Rearrange factor levels for better compatibility with model functions
                        )
