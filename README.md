@@ -40,7 +40,7 @@ The code pipeline in this repository consists of three main steps:
     - Save processed data as labels and features:
         - Labels: contain all the sequences representative of each cluster for each hold-out subtype 
         - Features: 12 sets of features for each of the 8 genes considered (total of 96 tables) used for training the ML models. 
-    Features are stored separately from holdout cluster labels to avoid saving copies of features columns for the same sequences across holdout clusters (improve efficiency of data storge). **PLEASE NOTE: Labels and features tables were shared by University of Glasgow and the `process_GISAID_NCBI_data.R` script was never run.** 
+    Features are stored separately from holdout cluster labels to avoid saving copies of features columns for the same sequences across holdout clusters (improve efficiency of data storge). **PLEASE NOTE: Labels and features tables were shared by the University of Glasgow and the `process_GISAID_NCBI_data.R` script is not meant to be run.** 
 
 2. Calculate the protein features for the ML models (`protein_feat_extract.py `) using a well-documented existing package (iFeatureOmega) that's only available for Python 
 3. Train Machine Learning models using 5 different ML algorithms (e.g., `build_glmnet_vectorised_barkla.R`) :
