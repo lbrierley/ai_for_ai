@@ -67,7 +67,7 @@ xgb_fun <- function(subtype){
   # Specify variables used
   preds <- train %>% select(-label, -cluster_rep) %>% remove_constant %>% names
   
-  # Create folds for 5-fold cross-validation
+  # Read-in predefined folds for 5-fold cross-validation
   fold_indices <- readRDS("S3/data/fold_indices_list.rds") %>% .[[subtype]]
   
   ##############
