@@ -2,7 +2,17 @@
 # Load packages, data #
 #######################
 
-holdout_cluster_grid <- list.files(path = "S3/data/full/holdout_clusters", pattern = "labels.csv") %>%
+library(caret)
+library(magrittr)
+library(janitor)
+library(dplyr)
+library(tidyr)
+
+#########
+# Setup #
+#########
+
+holdout_cluster_grid <- list.files(path = "S3\\data\\full\\holdout_clusters\\", pattern = "labels.csv") %>%
   gsub("ex_|_labels.csv", "", .) %>%
   stringr::str_split(., "_") %>% 
   do.call(rbind.data.frame, .) %>%
@@ -12,38 +22,39 @@ cluster_set <- "70_7"
 
 fold_indices_list <- list()
 
+#############################################################
+# Extract training folds from previously run model and save #
+#############################################################
+
 model_list <- list.files(path = "S3/analysis", pattern = ".rds", recursive = TRUE, full.names = TRUE) %>%
-  .[grepl(cluster_sets, .)] %>%
-  .[grepl("results_1.*_02_24", .)] %>%
+  .[grepl(cluster_set, .)] %>%
+  .[grepl("results_14_02_24", .)] %>%
   .[1] %>%
   readRDS
 
 for(i in 1:length(unique(holdout_cluster_grid$subtype))){
   
-  ####################################################
-  # Train models on each feature set on each protein #
-  ####################################################
-  
-  # labels <- read.csv(paste0("S3\\data\\full\\holdout_clusters\\ex_", "H10N8", "_", cluster_set, "_labels.csv")) %>% 
-  #   select(cluster_rep, label) %>%
-  #   mutate(label = factor(label, levels = c("zoon", "nz"))
-  #   )
-  # 
-  # # Load feature sets for training data clusters
-  # train <- left_join(labels,
-  #                    readRDS(paste0("S3\\data\\full\\mlready\\", "allflu_prot_2mer_pt_HA.rds")) %>% 
-  #                      select(-any_of(c("segment", "cds_id", "enc", "GC_content"))),
-  #                    by = c("cluster_rep" = "gid"))
-  # 
-  # # Specify variables used
-  # preds <- train %>% select(-label, -cluster_rep) %>% remove_constant %>% names
-  # 
-  # # Create folds for 5-fold cross-validation
-  # set.seed(1657)
-  # fold_indices_list[[subtype]] <- createMultiFolds(train$label, k = 5, times = 1)
-  
   fold_indices_list[[i]] <- model_list[[i]]$control$index
   
 }
-
+  
+# #############################################
+# # Generate training folds a priori and save #
+# #############################################
+# 
+# fold_fun <- function(subtype){
+#   
+#   labels <- read.csv(paste0("S3/data/full/holdout_clusters/ex_", subtype, "_", cluster_set, "_labels.csv")) %>% 
+#     select(cluster_rep, label) %>%
+#     mutate(label = factor(case_when(label == "zoon" ~ "hzoon", label == "nz" ~ "nz")) # Rearrange factor levels for better compatibility with model functions
+#     )
+#   
+#   # Create folds for 5-fold cross-validation
+#   set.seed(1657)
+#   createMultiFolds(labels$label, k = 5, times = 1) %>% 
+#     return()
+# }
+# 
+# fold_indices_list <- Map(f = fold_fun, subtype = unique(holdout_cluster_grid$subtype)) 
+names(fold_indices_list) <- unique(holdout_cluster_grid$subtype)
 fold_indices_list %>% saveRDS("S3/data/fold_indices_list.rds")
