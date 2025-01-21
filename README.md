@@ -26,9 +26,9 @@ Project contact: [lorenzo.cattarino@ukhsa.gov.uk](mailto:lorenzo.cattarino@ukhsa
 The project uses viral genome sequences from NCBI GenBank and GISAID. Data (both raw sequences and processed outputs) are saved in the project's shared drive and also in the project directory on the HPC (`/data/projects/zoonosis-risk-ai/zoonosis-risk-ai-modelling/data`).
 
 ## How to run the code
-Log into the HPC using Putty. Please see [HPC guidance](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/High+Performance+Computer) for more details. 
+Log into the HPC using Putty. Please see this [HPC guidance](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/High+Performance+Computer) for more details. 
 
-Navigate to the project GitHub repository in the project directory and update the main branch. 
+Navigate to the project GitHub repository in the project directory and update the main branch using Putty, with 
 
 ```
 cd /data/projects/zoonosis-risk-ai/zoonosis-risk-ai-modelling
@@ -37,13 +37,13 @@ git pull
 
 To be able to work with git from the HPC (i.e., pull code developed locally) you might need to configure a Secure Shell Protocol (SSH) connection. Follow the instructions [here](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/HPC#HPC-Cloningtherepo) to do that.
 
-The full routine can be run using the `run_full_analysis.sbatch` script. The script contains the specific resources required on the HPC for running the routine. Follow the instruction in this [page](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/HPC) to familiarize yourself with HPC resources and to submit the script to the HPC. It also calls the conda environment (*zoonosis-risk-ml*) used for this project. The environment has already been set up using the `S3/environment.yml` file which contains the necessary code dependencies (packages). **Please note this script can take up to 2 days to run.** You can run the whole routine with: 
+The full routine can be run using the `run_full_analysis.sbatch` script. The script contains the specific resources required on the HPC for running the routine. Please see this [HPC guidance](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/HPC) to familiarize yourself with HPC resources and to submit the script to the HPC. It also calls the conda environment (*zoonosis-risk-ml*) used for this project. The environment has already been set up using the `S3/environment.yml` file which contains the necessary code dependencies (packages). **Please note this script currently can take up to 2 days to run.** You can run the whole routine from Putty with: 
 
 ```
 sbatch S3/batch_scripts/run_full_analysis.sbatch
 ```
 
-Sometimes you might want to run only part of the routine. To do that, you can edit locally the `run_full_analysis.sbatch` file by commenting off any lines corresponding to the scripts you do not want to re-run. Then you commit the change. After synchronizing the Git tree on the HPC with the remote tree (`git pull`), you can resubmit batch job.
+Sometimes you might want to run only part of the routine. To do that, you can edit locally the `run_full_analysis.sbatch` file by commenting off any lines corresponding to the scripts you do not want to re-run. Then you commit the change. After synchronizing the Git tree on the HPC with the remote tree (`git pull`), you can resubmit the batch job.
 
 ## Links
 [Project Confluence page](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/Avian+Influenza+Zoonotic+Risk+Modelling+ML)
