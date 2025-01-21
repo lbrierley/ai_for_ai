@@ -13,12 +13,12 @@ repos:
       #   args: ['--branch', 'master', '--pattern', '^(?!((hotfix|feature|bug)-[a-zA-Z-]{1,4}-[0-9]{1,4})).*']
 
   - repo: 'https://github.com/kynan/nbstripout'
-    rev: 0.7.1
+    rev: 0.8.1
     hooks:
       - id: nbstripout
 
   - repo: https://github.com/lorenzwalthert/precommit
-    rev: v0.4.2
+    rev: v0.4.3.9003
     hooks:
       - id: style-files
         args: [--style_pkg=styler, --style_fun=tidyverse_style]
