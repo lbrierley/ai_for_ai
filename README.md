@@ -37,7 +37,7 @@ git pull
 
 To be able to work with git from the HPC (i.e., pull code developed locally) you might need to configure a Secure Shell Protocol (SSH) connection. Follow the instructions [here](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/HPC#HPC-Cloningtherepo) to do that.
 
-The full routine can be run using the `run_full_analysis.sbatch` script. The script contains the specific resources required on the HPC for running the routine. Please see this [HPC guidance](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/HPC) to familiarize yourself with HPC resources and to submit the script to the HPC. It also calls the conda environment (*zoonosis-risk-ml*) used for this project. The environment has already been set up using the `S3/environment.yml` file which contains the necessary code dependencies (packages). **Please note this script currently can take up to 2 days to run.** You can run the whole routine from Putty with: 
+The full routine can be run using the `run_full_analysis.sbatch` batch script. The script contains the specific resources required on the HPC for running the full routine. Please see this [HPC guidance](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/HPC) to familiarize yourself with HPC resources and to submit the script to the HPC. It also calls the conda environment (*zoonosis-risk-ml*) used for this project. The environment has already been set up using the `S3/environment.yml` file which contains the necessary code dependencies (packages). **Please note this script currently can take up to 2 days to run.** You can run the whole routine from Putty with: 
 
 ```
 sbatch S3/batch_scripts/run_full_analysis.sbatch
