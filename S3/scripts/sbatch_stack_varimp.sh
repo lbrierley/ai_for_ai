@@ -4,25 +4,25 @@
 # Use the current environment for this job.
 #SBATCH --export=ALL
 # Define job name
-#SBATCH -J stackvarimp
+#SBATCH -J stackvarimp3
 # Define a standard output file. When the job is running, %u will be replaced by user name,
 # %N will be replaced by the name of the node that runs the batch script, and %j will be replaced by job id number.
-#SBATCH -o stackvarimp.%u.%N.%j.out
+#SBATCH -o stackvarimp3.%u.%N.%j.out
 # Define a standard error file
-#SBATCH -e stackvarimp.%u.%N.%j.err
+#SBATCH -e stackvarimp3.%u.%N.%j.err
 # Request the partition
-#SBATCH -p bioinfo
+#SBATCH -p gpu
 # Request the number of nodes
 #SBATCH -N 1
 # Request the number of cores
-#SBATCH -n 40
+#SBATCH -n 12
 # Specify time limit in format a-bb:cc:dd, where a is days, b is hours, c is minutes, and d is seconds.
 #SBATCH -t 3-00:00:00
 # Request the memory on the node or request memory per core
 # PLEASE don't set the memory option as we should use the default memory which is based on the number of cores 
 ##SBATCH --mem-per-cpu=9000M
 # Insert your own username to get e-mail notifications (note: keep just one "#" before SBATCH)
-##SBATCH --mail-user=lbrier@liverpool.ac.uk
+#SBATCH --mail-user=lbrier@liverpool.ac.uk
 # Notify user by email when certain event types occur
 #SBATCH --mail-type=ALL
 #
@@ -76,7 +76,7 @@ echo
 echo "Running R job:"
 echo   
 
-Rscript stack_varimp_barkla.R
+Rscript stack_weight_varimp_barkla3.R
 
 # the ret flag is the return code, so you can spot easily if your code failed.
 ret=$?
