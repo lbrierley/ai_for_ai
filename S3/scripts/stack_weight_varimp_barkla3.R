@@ -181,7 +181,7 @@ AUC_base = roc(response = feats_list %>% bind_rows() %>% pull(label),
                quiet = TRUE)$auc %>% 
   as.numeric
 
-varimp_perm <- foreach (varname = varnames[40001:length(varnames)],
+varimp_perm <- foreach (varname = varnames[20001:30000],
 .packages = c("caret","caretEnsemble","matrixStats","magrittr","pROC","dplyr","tidyr","purrr","stringr","tibble","kernlab","xgboost","ranger","glmnet"),
 .inorder = FALSE) %dopar% {
   
@@ -216,4 +216,4 @@ varimp_perm <- foreach (varname = varnames[40001:length(varnames)],
 
 stopCluster(cl)
 
-varimp_perm %>% bind_rows %>% write.csv("varimp_perm_weight_pt5.csv")
+varimp_perm %>% bind_rows %>% write.csv("varimp_perm_weight_pt3.csv")
