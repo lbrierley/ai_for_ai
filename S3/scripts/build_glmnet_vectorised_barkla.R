@@ -66,9 +66,8 @@ glmnet_fun <- function(subtype){
   # Specify variables used
   preds <- train %>% select(-label, -cluster_rep) %>% remove_constant %>% names
   
-  # Create folds for 5-fold cross-validation
-  set.seed(1657)
-  fold_indices <- createMultiFolds(train$label, k = 5, times = 1)
+  # Read-in predefined folds for 5-fold cross-validation
+  fold_indices <- readRDS("S3/data/fold_indices_list.rds") %>% .[[subtype]]
   
   #################
   # Run ML models #
