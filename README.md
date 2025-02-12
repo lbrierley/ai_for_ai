@@ -23,7 +23,9 @@ Project contact: [lorenzo.cattarino@ukhsa.gov.uk](mailto:lorenzo.cattarino@ukhsa
 
 ## Data 
 
-The project uses viral genome sequences from NCBI GenBank and GISAID. Data (both raw sequences and processed outputs) are saved in the project's shared drive and also in the project directory on the HPC (`/data/projects/zoonosis-risk-ai/zoonosis-risk-ai-modelling/data`).
+The project uses viral genome sequences from NCBI GenBank and GISAID. Data (both raw sequences and processed outputs) are saved in the project shared drive and also in the project directory on the Porton Down HPC (`/data/projects/zoonosis-risk-ai/zoonosis-risk-ai-modelling/data`).
+
+**03/02/2025 - NOTE: Due a water leak issue in Porton Down, the project directory has been migrated to the HPC cluster in Colindale (path: `/hpscol02/tenant1/zoonosis-risk-ai`)**    
 
 ## How to run the code
 Log into the HPC using Putty. Please see this [HPC guidance](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/High+Performance+Computer) for more details. 
