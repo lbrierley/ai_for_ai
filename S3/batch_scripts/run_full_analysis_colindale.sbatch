@@ -1,5 +1,6 @@
 #!/bin/sh
 #SBATCH --nodes=1
+#SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
 #SBATCH --time=00:30:00
 #SBATCH --partition=standard-wp
