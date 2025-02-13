@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=2
 #SBATCH --time=00:30:00
 #SBATCH --partition=standard-wp
 #SBATCH --job-name=zoonosis-risk-ai-modelling
