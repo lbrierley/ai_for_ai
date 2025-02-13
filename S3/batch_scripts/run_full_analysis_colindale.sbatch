@@ -1,7 +1,7 @@
 #!/bin/sh
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=32
-#SBATCH --time=7-00:00:00
+#SBATCH --time=00:30:00
 #SBATCH --partition=standard-wp
 #SBATCH --job-name=zoonosis-risk-ai-modelling
 #SBATCH --error=S3/batch_scripts/full_analysis.%J.stderr
