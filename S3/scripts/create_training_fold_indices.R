@@ -12,7 +12,7 @@ library(tidyr)
 # Setup #
 #########
 
-holdout_cluster_grid <- list.files(path = "S3\\data\\full\\holdout_clusters\\", pattern = "labels.csv") %>%
+holdout_cluster_grid <- list.files(path = "S3/data/full/holdout_clusters", pattern = "labels.csv") %>%
   gsub("ex_|_labels.csv", "", .) %>%
   stringr::str_split(., "_") %>% 
   do.call(rbind.data.frame, .) %>%
