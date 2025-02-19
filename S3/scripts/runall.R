@@ -18,7 +18,7 @@ source("S3/scripts/functions.R", echo = TRUE)
 
 # Define same folds in 5-fold cross validation for use across all ML algorithms
 header(verbose, "Creating 5-fold cross validation indices", padding = 1)
-source("S3/scripts/Create_training_fold_indices.R", echo = TRUE)
+source("S3/scripts/create_training_fold_indices.R", echo = TRUE)
 
 # # Construct ML models for each feature set-gene combination. XGboost split into 5 scripts as longer run time.
 # header(verbose, "Training a Lasso Regularised Linear Model", padding = 1)
