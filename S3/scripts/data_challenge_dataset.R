@@ -79,9 +79,9 @@ featsets_labels_full <- left_join(allflu_wgs_ref, all_featsets, by = "gid")
 # the clustered data set is to be tested on a separate set
 test_set <- left_join(
   allflu_wgs_ref %>%
-    filter(subtype == subtypes[8]) %>%
+    filter(subtype == subtypes[8]),
     # Only consider zoonotic sequences for zoonotic holdouts
-    filter(subtype %in% holdout_zoon & label == "hzoon"|subtype %in% holdout_nz),
+    # filter(subtype %in% holdout_zoon & label == "hzoon"|subtype %in% holdout_nz)
   all_featsets,
   by = c("gid"))
 
