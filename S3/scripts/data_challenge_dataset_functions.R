@@ -1,0 +1,26 @@
+read_RDS <- function(x, focgene, n_col) {
+  
+  df <- readRDS(x) %>% 
+    select(-any_of(c("segment", "cds_id", "enc", "GC_content"))) %>%
+    rename_with(~paste(., focgene, sep = "_"), -c(gid))
+  
+  # select n_col features at random
+  # first column is the sequence ID
+  n_col <- min(n_col, ncol(df)-1)
+  idx <- sample(2:ncol(df), n_col)
+  
+  df[, c(1, idx)]
+  
+}
+
+read_featset <- function(focgene, n_col) {
+  
+  feature_sets_files <- list.files(
+    path = "S3/data/full/mlready", 
+    pattern = focgene, 
+    full.names = TRUE)
+  
+  feature_sets <- map(feature_sets_files, read_RDS, focgene = focgene, n_col = n_col) %>%
+    reduce(left_join, by = "gid")
+  
+}
