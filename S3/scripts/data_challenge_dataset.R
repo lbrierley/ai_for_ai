@@ -67,7 +67,7 @@ allflu_wgs_ref <- read.csv("S3/data/full/allflu_wgs_ref.csv") %>%
 
 
 # read and concatenate n_col random features for all genes 
-all_featsets_ls <- map(genes, read_featset, n_col = 10)
+all_featsets_ls <- map(genes, read_featset)
 all_featsets <- reduce(all_featsets_ls, left_join, by = "gid")
 
 # join features to labels (of the clustered dataset where one subtype was held out for test) 
