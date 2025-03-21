@@ -23,7 +23,7 @@ read_featset <- function(focgene, n_col) {
   
   feature_sets_files <- list.files(
     path = "S3/data/full/mlready", 
-    pattern = paste0("(nuc_2mer|ctdc|ctdd|pseaac).+", focgene), 
+    pattern = paste0("(nuc_2mer|ctdt|ctdd|pseaac).+", focgene), 
     full.names = TRUE)
   
   feature_sets <- map(feature_sets_files, read_RDS, focgene = focgene, n_col = n_col) %>%
