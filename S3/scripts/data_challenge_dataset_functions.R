@@ -1,15 +1,21 @@
-read_RDS <- function(x, focgene, n_col) {
+read_RDS <- function(x, focgene, n_col=NULL) {
   
   df <- readRDS(x) %>% 
     select(-any_of(c("segment", "cds_id", "enc", "GC_content"))) %>%
     rename_with(~paste(., focgene, sep = "_"), -c(gid))
   
-  # select n_col features at random
-  # first column is the sequence ID
-  n_col <- min(n_col, ncol(df)-1)
-  idx <- sample(2:ncol(df), n_col)
+  if (!is.null(n_col)) {
+    
+    # select n_col features at random
+    # first column is the sequence ID
+    n_col <- min(n_col, ncol(df)-1)
+    idx <- sample(2:ncol(df), n_col)
+    
+    df <- df[, c(1, idx)]
+    
+  }
   
-  df[, c(1, idx)]
+  df
   
 }
 
