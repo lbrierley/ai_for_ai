@@ -29,24 +29,23 @@ source("S3/scripts/functions.R", echo = TRUE)
 # source("S3/scripts/build_svm_vectorised_barkla.R", echo = TRUE)
 # header(verbose, "Training a Support Vector Machine Model with Linear Kernel", padding = 1)
 # source("S3/scripts/build_svmlin_vectorised_barkla.R", echo = TRUE)
-header(verbose, "Training an eXtreme Gradient Boosting Classification Tree Model - Part 1", padding = 1)
-source("S3/scripts/build_xgb_vectorised_barkla.R", echo = TRUE)
-header(verbose, "Training an eXtreme Gradient Boosting Classification Tree Model - Part 2", padding = 1)
-source("S3/scripts/build_xgb_vectorised_barkla2.R", echo = TRUE)
-header(verbose, "Training an eXtreme Gradient Boosting Classification Tree Model - Part 3", padding = 1)
-source("S3/scripts/build_xgb_vectorised_barkla3.R", echo = TRUE)
-header(verbose, "Training an eXtreme Gradient Boosting Classification Tree Model - Part 4", padding = 1)
-source("S3/scripts/build_xgb_vectorised_barkla4.R", echo = TRUE)
-
-# # Stack 96 best models (best algorithm for each feature set-gene combination) into a meta-learner or 'stack' models, trained on the outputted probabilities from those 96 models
-# # Include class weighting in the stack model construction (i.e. upweight zoonotic as the rarer label in training data)
+# header(verbose, "Training an eXtreme Gradient Boosting Classification Tree Model - Part 1", padding = 1)
+# source("S3/scripts/build_xgb_vectorised_barkla.R", echo = TRUE)
+# header(verbose, "Training an eXtreme Gradient Boosting Classification Tree Model - Part 2", padding = 1)
+# source("S3/scripts/build_xgb_vectorised_barkla2.R", echo = TRUE)
+# header(verbose, "Training an eXtreme Gradient Boosting Classification Tree Model - Part 3", padding = 1)
+# source("S3/scripts/build_xgb_vectorised_barkla3.R", echo = TRUE)
+# header(verbose, "Training an eXtreme Gradient Boosting Classification Tree Model - Part 4", padding = 1)
+# source("S3/scripts/build_xgb_vectorised_barkla4.R", echo = TRUE)
+#
+# # Calculate model predictions on holdout sets and calculate metrics of performance
+# source("S3/scripts/evaluate_validate_barkla.R", echo = TRUE)
+#
+# Stack 96 best models (best algorithm for each feature set-gene combination) into a meta-learner or 'stack' models, trained on the outputted probabilities from those 96 models
+# Include class weighting in the stack model construction (i.e. upweight zoonotic as the rarer label in training data)
 # source("S3/scripts/stack_weight_models_barkla.R", echo = TRUE)
 # source("S3/scripts/stack_weight_varimp_barkla.R", echo = TRUE)
 # 
-# # Calculate model predictions on holdout sets and calculate metrics of performance
-# source("S3/scripts/evaluate_validate_barkla.R", echo = TRUE)
-# source("S3/scripts/evaluate_validate_local.R", echo = TRUE)
-# 
-# # Generate figures and tables
+# Generate figures and tables
 # source("S3/scripts/evaluate_validate_figs_tables.R", echo = TRUE)
 # source("S3/scripts/evaluate_validate_figs_tables_poster.R", echo = TRUE)
