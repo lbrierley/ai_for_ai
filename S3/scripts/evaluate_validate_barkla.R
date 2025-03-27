@@ -31,7 +31,7 @@ cl <- makePSOCKcluster(detectCores() - 1)
 registerDoParallel(cl)
 clusterSetRNGStream(cl, 1429)
 
-results_date <- "18_02_24"
+results_date <- "2025_03_10"
 method <- "svm"
 
 allflu_wgs_ref <- read.csv("allflu_wgs_ref.csv") %>%
