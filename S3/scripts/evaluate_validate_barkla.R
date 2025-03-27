@@ -34,7 +34,7 @@ clusterSetRNGStream(cl, 1429)
 results_date <- "2025_03_10"
 method <- "svm"
 
-allflu_wgs_ref <- read.csv("allflu_wgs_ref.csv") %>%
+allflu_wgs_ref <- read.csv("S3/data/full/allflu_wgs_ref.csv") %>%
   mutate(label = factor(case_when(label == "zoon" ~ "hzoon", label == "nz" ~ "nz"))) # Rearrange factor levels for better compatibility with model functions
 
 holdout_cluster_grid <- list.files(path = "S3/data/full/holdout_clusters/", pattern = "labels.csv") %>%
