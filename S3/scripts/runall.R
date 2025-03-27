@@ -38,8 +38,8 @@ source("S3/scripts/functions.R", echo = TRUE)
 # header(verbose, "Training an eXtreme Gradient Boosting Classification Tree Model - Part 4", padding = 1)
 # source("S3/scripts/build_xgb_vectorised_barkla4.R", echo = TRUE)
 #
-# # Calculate model predictions on holdout sets and calculate metrics of performance
-# source("S3/scripts/evaluate_validate_barkla.R", echo = TRUE)
+# Calculate model predictions on holdout sets and calculate metrics of performance
+source("S3/scripts/evaluate_validate_barkla.R", echo = TRUE)
 #
 # Stack 96 best models (best algorithm for each feature set-gene combination) into a meta-learner or 'stack' models, trained on the outputted probabilities from those 96 models
 # Include class weighting in the stack model construction (i.e. upweight zoonotic as the rarer label in training data)
