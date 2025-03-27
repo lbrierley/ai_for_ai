@@ -37,7 +37,7 @@ method <- "svm"
 allflu_wgs_ref <- read.csv("allflu_wgs_ref.csv") %>%
   mutate(label = factor(case_when(label == "zoon" ~ "hzoon", label == "nz" ~ "nz"))) # Rearrange factor levels for better compatibility with model functions
 
-holdout_cluster_grid <- list.files(path = "holdout_clusters/", pattern = "labels.csv") %>%
+holdout_cluster_grid <- list.files(path = "S3/data/full/holdout_clusters/", pattern = "labels.csv") %>%
   gsub("ex_|_labels.csv", "", .) %>%
   str_split(., "_") %>% 
   do.call(rbind.data.frame, .) %>%
@@ -61,11 +61,11 @@ holdout_nz <- c("H4N6", "H16N3", "H4N8", "H8N4")
 
 gridsearch <- foreach (cluster_set = cluster_sets) %:% 
   foreach (focgene = c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")) %:% 
-  foreach (featset = list.files(path = "mlready", pattern = focgene) %>% gsub("allflu_|_pt.*.rds", "", .),
+  foreach (featset = list.files(path = "S3/data/full/mlready", pattern = focgene) %>% gsub("allflu_|_pt.*.rds", "", .),
            .packages = c("caret","magrittr","pROC","dplyr")) %dopar% {
              
              # Load in ML model
-             model_list <- readRDS(paste0("/users/lbrier/results_", results_date, "/", cluster_set, "/", method, "_list_", featset, "_pt_", focgene, ".rds"))
+             model_list <- readRDS(paste0("results_", results_date, "/", cluster_set, "/", method, "_list_", featset, "_pt_", focgene, ".rds"))
              
              
              # Grid search parameter optimisation on validation sets
