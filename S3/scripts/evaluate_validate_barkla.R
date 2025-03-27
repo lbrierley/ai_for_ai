@@ -95,7 +95,7 @@ result_all <- foreach (cluster_set = cluster_sets) %:%
            .packages = c("caret","e1071","matrixStats","magrittr","pROC","janitor","dplyr","tidyr","purrr","forcats","stringr","tibble","kernlab","xgboost","ranger","glmnet")) %dopar% {
              
              # Load in ML model
-             model_list <- readRDS(paste0("/users/lbrier/results_", results_date, "/", cluster_set, "/", method, "_list_", featset, "_pt_", focgene, ".rds"))
+             model_list <- readRDS(paste0("results_", results_date, "/", cluster_set, "/", method, "_list_", featset, "_pt_", focgene, ".rds"))
              
              # Set up result list
              result_all <- list()
