@@ -1,5 +1,9 @@
 library(R.utils)
 
+# Create results folder 
+run_date <- format(Sys.time(), "%Y_%m_%d")
+dir.create(paste0("results_", run_date), showWarnings = FALSE, recursive = TRUE)
+
 # Load packages and set overall parameters
 header(verbose, "Loading packages and defining variables", padding = 1)
 source("S3/scripts/startup.R", echo = TRUE)
