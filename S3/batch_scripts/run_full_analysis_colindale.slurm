@@ -10,7 +10,6 @@
 
 
 source /hpscol02/tenant1/zoonosis-risk-ai/miniconda3/etc/profile.d/conda.sh
-conda env create -f S3/environment.yml
 conda activate zoonosis-risk-ml
 
 
