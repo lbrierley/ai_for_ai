@@ -1,8 +1,8 @@
 library(R.utils)
 
 # Create results folder 
-run_date <- format(Sys.time(), "%Y_%m_%d")
-dir.create(paste0("results_", run_date), showWarnings = FALSE, recursive = TRUE)
+# run_date <- format(Sys.time(), "%Y_%m_%d")
+# dir.create(paste0("results_", run_date), showWarnings = FALSE, recursive = TRUE)
 
 # Load packages and set overall parameters
 header(verbose, "Loading packages and defining variables", padding = 1)
@@ -12,7 +12,7 @@ source("S3/scripts/startup.R", echo = TRUE)
 header(verbose, "Loading custom functions", padding = 1)
 source("S3/scripts/functions.R", echo = TRUE)
 
-# # Process all training sequence data
+# Process all training sequence data
 # header(verbose, "Extracting and processing sequence data", padding = 1)
 # source("S3/scripts/process_GISAID_NCBI_data.R", echo = TRUE)
 
@@ -41,10 +41,10 @@ source("S3/scripts/functions.R", echo = TRUE)
 # source("S3/scripts/build_xgb_vectorised_barkla3.R", echo = TRUE)
 # header(verbose, "Training an eXtreme Gradient Boosting Classification Tree Model - Part 4", padding = 1)
 # source("S3/scripts/build_xgb_vectorised_barkla4.R", echo = TRUE)
-#
+
 # Calculate model predictions on holdout sets and calculate metrics of performance
 source("S3/scripts/evaluate_validate_barkla.R", echo = TRUE)
-#
+
 # Stack 96 best models (best algorithm for each feature set-gene combination) into a meta-learner or 'stack' models, trained on the outputted probabilities from those 96 models
 # Include class weighting in the stack model construction (i.e. upweight zoonotic as the rarer label in training data)
 # source("S3/scripts/stack_weight_models_barkla.R", echo = TRUE)
