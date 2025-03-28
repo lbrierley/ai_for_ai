@@ -91,7 +91,7 @@ gridsearch %>%
 
 result_all <- foreach (cluster_set = cluster_sets) %:% 
   foreach (focgene = c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")) %:% 
-  foreach (featset = list.files(path = "mlready", pattern = focgene) %>% gsub("allflu_|_pt.*.rds", "", .),
+  foreach (featset = list.files(path = "S3/data/full/mlready", pattern = focgene) %>% gsub("allflu_|_pt.*.rds", "", .),
            .packages = c("caret","e1071","matrixStats","magrittr","pROC","janitor","dplyr","tidyr","purrr","forcats","stringr","tibble","kernlab","xgboost","ranger","glmnet")) %dopar% {
              
              # Load in ML model
@@ -106,7 +106,7 @@ result_all <- foreach (cluster_set = cluster_sets) %:%
                            filter(subtype == x) %>%
                            filter(subtype %in% holdout_zoon & label == "hzoon"|subtype %in% holdout_nz) %>%  # Only consider zoonotic sequences for zoonotic holdouts
                            select(gid, subtype, label, src),
-                         readRDS(paste0("/users/lbrier/mlready/allflu_", featset, "_pt_", focgene, ".rds")) %>% 
+                         readRDS(paste0("S3/data/full/mlready/allflu_", featset, "_pt_", focgene, ".rds")) %>% 
                            select(-any_of(c("segment", "cds_id", "enc", "GC_content"))) %>%
 						   rename_with(~paste(., focgene, sep = "_"), -c(gid)),
                          by = c("gid")))
