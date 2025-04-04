@@ -10,7 +10,6 @@
 
 
 source /hpscol02/tenant1/zoonosis-risk-ai/miniconda3/etc/profile.d/conda.sh
-conda env create -f S3/environment.yml
 conda activate zoonosis-risk-ml
 
 
@@ -18,7 +17,7 @@ echo =========================================================
 echo SLURM job: submitted  date = `date`      
 date_start=`date +%s`
 
-Rscript S3/scripts/runall.R
+Rscript S3/scripts/test.R
 
 echo   
 echo ---------------                                           
