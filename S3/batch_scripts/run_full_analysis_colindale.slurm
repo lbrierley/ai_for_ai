@@ -1,5 +1,6 @@
 #!/bin/bash
 #SBATCH --nodes=1
+#SBATCH -n 96
 #SBATCH --time=10-00:00:00
 #SBATCH --partition=standard-wp
 #SBATCH --job-name=zoonosis-risk-ai-modelling
