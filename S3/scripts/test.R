@@ -27,10 +27,10 @@ library(glmnet)
 ###################################################
 
 # Set parallelisation
-cores <- detectCores()
+cores <- 40
 cat("cores = ", cores, "\n")
 
-cl <- makePSOCKcluster(cores - 1)
+cl <- makePSOCKcluster(cores)
 registerDoParallel(cl)
 clusterSetRNGStream(cl, 1429)
 
