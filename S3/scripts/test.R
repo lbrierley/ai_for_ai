@@ -26,6 +26,8 @@ library(glmnet)
 # Options and global definitions used in all runs #
 ###################################################
 
+dir.create(subtyperaw, showWarnings = FALSE, recursive = TRUE)
+
 # Set parallelisation
 cores <- 40
 cat("cores = ", cores, "\n")
@@ -62,35 +64,35 @@ holdout_nz <- c("H4N6", "H16N3", "H4N8", "H8N4")
 # Load ML model objects #
 #########################
 
-# gridsearch <- foreach (cluster_set = cluster_sets) %:% 
-#   foreach (focgene = c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")) %:% 
-#   foreach (featset = list.files(path = "S3/data/full/mlready", pattern = focgene) %>% gsub("allflu_|_pt.*.rds", "", .),
-#            .packages = c("caret","magrittr","pROC","dplyr")) %dopar% {
-#              
-#              # Load in ML model
-#              model_list <- readRDS(paste0("results_", results_date, "/", cluster_set, "/", method, "_list_", featset, "_pt_", focgene, ".rds"))
-#              
-#              
-#              # Grid search parameter optimisation on validation sets
-#              gridsearch <- lapply(model_list, function(x)  x$results) %>%
-#                bind_rows() %>%
-#                mutate(cluster_set = cluster_set,
-#                       featset = featset,
-#                       focgene = focgene)
-#              
-#              gridsearch %<>%
-#                mutate(subtype = rep(holdouts, each=nrow(gridsearch)/length(holdouts))) %>%
-#                relocate(cluster_set, featset, focgene, subtype)
-#              
-#              return(gridsearch)
-#            }     
-# 
-# gridsearch %>% 
-#   unlist(recursive=FALSE) %>% 
-#   unlist(recursive=FALSE) %>% 
-#   bind_rows() %>%
-#   write.table(file=paste0("gridsearch_", results_date, ".csv"),
-#               sep=',', row.names=F, col.names=T)
+gridsearch <- foreach (cluster_set = cluster_sets) %:%
+  foreach (focgene = c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")) %:%
+  foreach (featset = list.files(path = "S3/data/full/mlready", pattern = focgene) %>% gsub("allflu_|_pt.*.rds", "", .),
+           .packages = c("caret","magrittr","pROC","dplyr")) %dopar% {
+
+             # Load in ML model
+             model_list <- readRDS(paste0("results_", results_date, "/", cluster_set, "/", method, "_list_", featset, "_pt_", focgene, ".rds"))
+
+
+             # Grid search parameter optimisation on validation sets
+             gridsearch <- lapply(model_list, function(x)  x$results) %>%
+               bind_rows() %>%
+               mutate(cluster_set = cluster_set,
+                      featset = featset,
+                      focgene = focgene)
+
+             gridsearch %<>%
+               mutate(subtype = rep(holdouts, each=nrow(gridsearch)/length(holdouts))) %>%
+               relocate(cluster_set, featset, focgene, subtype)
+
+             return(gridsearch)
+           }
+
+gridsearch %>%
+  unlist(recursive=FALSE) %>%
+  unlist(recursive=FALSE) %>%
+  bind_rows() %>%
+  write.table(file=paste0("gridsearch_", results_date, ".csv"),
+              sep=',', row.names=F, col.names=T)
 
 result_all <- foreach (cluster_set = cluster_sets) %:% 
   foreach (focgene = c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")) %:% 
