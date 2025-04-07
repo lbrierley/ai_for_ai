@@ -26,7 +26,7 @@ library(glmnet)
 # Options and global definitions used in all runs #
 ###################################################
 
-dir.create(subtyperaw, showWarnings = FALSE, recursive = TRUE)
+dir.create("subtyperaw", showWarnings = FALSE, recursive = TRUE)
 
 # Set parallelisation
 cores <- 40
