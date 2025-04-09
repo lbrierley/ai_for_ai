@@ -29,7 +29,7 @@ library(glmnet)
 dir.create("subtyperaw", showWarnings = FALSE, recursive = TRUE)
 
 # Set parallelisation
-cores <- 43
+cores <- 42
 cat("cores = ", cores, "\n")
 
 cl <- makePSOCKcluster(cores)
