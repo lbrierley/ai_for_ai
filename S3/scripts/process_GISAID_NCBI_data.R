@@ -143,26 +143,6 @@ allflu_nuc_df %<>%
                              duplicated(accession) == TRUE ~ 1,
                              TRUE ~ 0))
 
-# Plot whole genome sequence dates
-g1 <- allflu_wgs_df %>%
-  mutate(label = case_when(
-    label == "nz" ~ "avian",
-    label == "zoon" ~ "zoonotic",
-  )) %>%  
-  filter(!is.na(date) & date > as.Date("1990-01-01")) %>%
-  add_count(subtype, name = "sub_n") %>%
-  filter(sub_n > 750 | subtype %in% c("H3N8", "H5N1", "H5N6", "H7N3", "H7N4", "H7N9", "H9N2", "H10N8")) %>%
-  ggplot(aes(x = as.Date(date), fill = subtype)) +
-  geom_histogram(position = "stack", binwidth=365) +
-  scale_fill_manual(values = rev(c(RColorBrewer::brewer.pal(12, "Paired"), "black"))) +
-  scale_x_date(limits = c(as.Date("1990-01-01"), as.Date("2022-12-31")), date_labels =  "%Y") +
-  facet_grid(rows = vars(label), cols = vars(src), scales = "free_y") +
-  theme_bw() +
-  xlab("Date") +
-  ylab("Frequency")
-
-ggsave("S3\\figures_tables\\time_dist_wgs.png", plot = g1, width = 18, height = 6)
-
 # allflu_wgs_df %>%
 #   mutate(date = date %>% gsub("--", "-06-", .) %>% # assume midpoint for missing months
 #            gsub("-$", "-15", .) %>% # assume midpoint for missing days
