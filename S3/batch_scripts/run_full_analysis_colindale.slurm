@@ -16,7 +16,7 @@ echo =========================================================
 echo SLURM job: submitted  date = `date`      
 date_start=`date +%s`
 
-Rscript S3/scripts/test.R
+Rscript S3/scripts/runall.R
 
 echo   
 echo ---------------                                           
