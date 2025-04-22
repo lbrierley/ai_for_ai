@@ -16,7 +16,7 @@ echo =========================================================
 echo SLURM job: submitted  date = `date`      
 date_start=`date +%s`
 
-mpirun -np 1 Rscript -e "source('S3/scripts/runall.R')"
+mpirun -np 1 Rscript -e "source('S3/scripts/build_glmnet_vectorised_barkla_mpi.R')"
 
 echo   
 echo ---------------                                           
