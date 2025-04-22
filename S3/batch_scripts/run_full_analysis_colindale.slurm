@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --nodes=1
-#SBATCH -n 96
+#SBATCH -n 40
 #SBATCH --time=10-00:00:00
 #SBATCH --partition=standard-wp
 #SBATCH --job-name=zoonosis-risk-ai-modelling
@@ -16,7 +16,7 @@ echo =========================================================
 echo SLURM job: submitted  date = `date`      
 date_start=`date +%s`
 
-Rscript S3/scripts/test.R
+Rscript S3/scripts/runall.R
 
 echo   
 echo ---------------                                           
