@@ -43,11 +43,11 @@ source("S3/scripts/functions.R", echo = TRUE)
 # source("S3/scripts/build_xgb_vectorised_barkla4.R", echo = TRUE)
 
 # Calculate model predictions on holdout sets and calculate metrics of performance
-source("S3/scripts/evaluate_validate_barkla.R", echo = TRUE)
+# source("S3/scripts/evaluate_validate_barkla.R", echo = TRUE)
 
 # Stack 96 best models (best algorithm for each feature set-gene combination) into a meta-learner or 'stack' models, trained on the outputted probabilities from those 96 models
 # Include class weighting in the stack model construction (i.e. upweight zoonotic as the rarer label in training data)
-# source("S3/scripts/stack_weight_models_barkla.R", echo = TRUE)
+ source("S3/scripts/stack_weight_models_barkla.R", echo = TRUE)
 # source("S3/scripts/stack_weight_varimp_barkla.R", echo = TRUE)
 # 
 # Generate figures and tables
