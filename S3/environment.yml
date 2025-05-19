@@ -35,6 +35,8 @@ dependencies:
  - r-xgboost
  - r-parallelly
  - r-rmpi
+ - r-caretEnsemble
+ - r-pROC
  - bioconductor-Biostrings
  - bioconductor-coRdon
  - bioconductor-ORFik
