@@ -24,7 +24,7 @@ library(pROC)
 #########################################
 
 # Set parallelisation
-cl <- makePSOCKcluster(detectCores() - 1)
+cl <- makePSOCKcluster(40)
 registerDoParallel(cl)
 clusterSetRNGStream(cl, 1429)
 
@@ -45,11 +45,11 @@ holdout_cluster_grid <- list.files(path = "S3/data/full/holdout_clusters", patte
 
 cluster_sets <- "70_7"
 
-results_rf <- read.csv(paste0("results_", "14_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "rf") 
-results_plr <- read.csv(paste0("results_", "15_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "glmnet")
-results_xgb <- read.csv(paste0("results_", "16_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "xgb")
-results_svmlin <- read.csv(paste0("results_", "17_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "svmlin")
-results_svmrad <- read.csv(paste0("results_", "18_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "svm")
+results_rf <- read.csv(paste0("results_", "2025_03_11", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "rf") 
+results_plr <- read.csv(paste0("results_", "2025_03_10", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "glmnet")
+results_xgb <- read.csv(paste0("results_", "2025_03_14", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "xgb")
+results_svmlin <- read.csv(paste0("results_", "2025_03_13", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "svmlin")
+results_svmrad <- read.csv(paste0("results_", "2025_03_12", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "svm")
 
 all_res <- bind_rows(results_rf,
                      results_svmlin,
