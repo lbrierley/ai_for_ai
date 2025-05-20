@@ -18,6 +18,8 @@ library(xgboost)
 library(glmnet)
 library(caretEnsemble)
 library(pROC)
+library(e1071)
+library(matrixStats)
 
 #########################################
 # Load required data and model pointers #
@@ -74,7 +76,7 @@ result <- list()
 # Apply a stacked model to each holdout subtype #
 #################################################
 
-result <- foreach (subtypepicked = holdouts,
+result <- foreach(subtypepicked = holdouts,
                    .packages = c("caret","caretEnsemble","e1071","matrixStats","magrittr","pROC","janitor","dplyr","tidyr","purrr","forcats","stringr","tibble","kernlab","xgboost","ranger","glmnet")) %dopar% {
                      
                      # Determine weights
