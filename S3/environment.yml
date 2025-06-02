@@ -37,6 +37,8 @@ dependencies:
  - r-rmpi
  - r-caretEnsemble
  - r-pROC
+ - r-e1071
+ - r-matrixStats
  - bioconductor-Biostrings
  - bioconductor-coRdon
  - bioconductor-ORFik
