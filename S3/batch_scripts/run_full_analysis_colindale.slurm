@@ -3,7 +3,7 @@
 #SBATCH -n 40
 #SBATCH --time=10-00:00:00
 #SBATCH --partition=standard-wp
-#SBATCH --mem=65GB
+#SBATCH --mem-per-cpu=10GB
 #SBATCH --job-name=zoonosis-risk-ai-modelling
 #SBATCH --error=S3/batch_scripts/full_analysis.%J.stderr
 #SBATCH --output=S3/batch_scripts/full_analysis.%J.stdout
