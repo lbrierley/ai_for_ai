@@ -72,10 +72,19 @@ model_files <- list.files(pattern = ".rds", recursive = TRUE, full.names = TRUE)
 # Set up result list
 result <- list()
 
+length(model_files)
 if (length(model_files) == 0) stop("model_files is empty!")
+length(holdouts)
 if (length(holdouts) == 0) stop("holdouts is empty!")
+nrow(all_res)
+ncol(all_res)
 if (length(all_res) == 0) stop("all_res is empty!")
+nrow(allflu_wgs_ref)
+ncol(allflu_wgs_ref)
 if (length(allflu_wgs_ref) == 0) stop("allflu_wgs_ref is empty!")
+length(holdout_cluster_grid)
+nrow(holdout_cluster_grid)
+ncol(holdout_cluster_grid)
 if (length(holdout_cluster_grid) == 0) stop("holdout_cluster_grid is empty!")
 
 #################################################
