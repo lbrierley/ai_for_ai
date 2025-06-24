@@ -104,7 +104,7 @@ result <- foreach(subtypepicked = holdouts,
                      model_list <- purrr::map(model_files %>% as.list(), 
                                               function (x) readRDS(x) %>% .[[which(holdouts == subtypepicked)]])
                      print(model_list)
-                     length(model_List)
+                     length(model_list)
                      
                      names(model_list) <- model_files %>% gsub(".*/|.rds|_list|_pt", "", .)
                      
