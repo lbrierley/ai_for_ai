@@ -48,4 +48,4 @@ sbatch S3/batch_scripts/run_full_analysis.sbatch
 Sometimes you might want to run only part of the routine. To do that, you can edit locally the `run_full_analysis.sbatch` file by commenting off any lines corresponding to the scripts you do not want to re-run. Then you commit the change. After synchronizing the Git tree on the HPC with the remote tree (`git pull`), you can resubmit the batch job.
 
 ## Links
-[Project Confluence page](https://confluence.collab.test-and-trace.nhs.uk/display/DEDT/Avian+Influenza+Zoonotic+Risk+Modelling+ML)
+[Project Confluence page](https://ukhsa.atlassian.net/wiki/spaces/DEDT/pages/178818562/Avian+Influenza+Zoonosis+Risk+Modelling+ML)
