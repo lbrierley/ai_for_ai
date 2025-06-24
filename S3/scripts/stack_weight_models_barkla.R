@@ -72,6 +72,21 @@ model_files <- list.files(pattern = ".rds", recursive = TRUE, full.names = TRUE)
 # Set up result list
 result <- list()
 
+length(model_files)
+if (length(model_files) == 0) stop("model_files is empty!")
+length(holdouts)
+if (length(holdouts) == 0) stop("holdouts is empty!")
+nrow(all_res)
+ncol(all_res)
+if (length(all_res) == 0) stop("all_res is empty!")
+nrow(allflu_wgs_ref)
+ncol(allflu_wgs_ref)
+if (length(allflu_wgs_ref) == 0) stop("allflu_wgs_ref is empty!")
+length(holdout_cluster_grid)
+nrow(holdout_cluster_grid)
+ncol(holdout_cluster_grid)
+if (length(holdout_cluster_grid) == 0) stop("holdout_cluster_grid is empty!")
+
 #################################################
 # Apply a stacked model to each holdout subtype #
 #################################################
@@ -88,9 +103,12 @@ result <- foreach(subtypepicked = holdouts,
                      # Read ALL models, each holding out the given subtype (requires large workspace)
                      model_list <- purrr::map(model_files %>% as.list(), 
                                               function (x) readRDS(x) %>% .[[which(holdouts == subtypepicked)]])
+                     print(model_list)
+                     length(model_List)
                      
                      names(model_list) <- model_files %>% gsub(".*/|.rds|_list|_pt", "", .)
                      
+
                      # Retain only models with positive discriminatory power (AUC > 0.5)
                      
                      all_res <- read.csv("results_all_methods.csv", na.strings = "NaN") %>%
@@ -184,6 +202,9 @@ result <- foreach(subtypepicked = holdouts,
                                    arrange(gid),
                                  .)
                      
+                    print(allfeats)
+                    length(allfeats)
+                     
                      element <- list(main = data.frame(hzoon = predict(plr_stack, newdata=allfeats, type = "prob"), 
                                                        label = allfeats$label,
                                                        subtype = subtypepicked),
@@ -205,6 +226,7 @@ result <- foreach(subtypepicked = holdouts,
 stopCluster(cl)
 
 result_all <- result %>% purrr::transpose() %>% .[["main"]] %>% bind_rows
+print(result_all)
 
 ROC = roc(response = result_all$label,
           predictor = result_all$hzoon,
@@ -225,6 +247,8 @@ line <- bind_cols(threshold = coords(ROC, "best", best.method="closest.topleft")
   mutate(across(where(is.numeric), round, 3))
 
 result_coefs <- result %>% purrr::transpose() %>% .[["coef"]] %>% bind_rows
+
+print(result_coefs)
 
 write.csv(line, "stack_weight_results.csv")
 write.csv(result_coefs, "stack_weight_coef.csv")
