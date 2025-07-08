@@ -11,6 +11,7 @@ library(tidyr)
 library(magrittr)
 library(ggplot2)
 library(ggrepel)
+library(rentrez)
 
 allflu_wgs_ref <- read.csv("S3\\data\\full\\allflu_wgs_ref.csv")
 
@@ -265,9 +266,63 @@ stacked_raw <- read.csv("S3/analysis/stack_weight_subtypeacc_raw.csv") %>%
                              TRUE ~ subtype),
          subtype = factor(subtype, levels = c("H4N6", "H4N8", "H8N4", "H16N3", "H5N1", "H5N6", "H7N9", "H9N2", "rare subtypes (< 10)")))
 
-# Top predictions for zoonotic among avian viruses
+# All avian sequences above threshold for zoonotic prediction
 
-stacked_raw %>% filter(label == "nz") %>% arrange(-hzoon) %>% head
+zoon_risk <- stacked_raw %>% 
+  filter(label == "nz" & pred == "hzoon") %>% 
+  arrange(-hzoon) %>%
+  as.data.frame
+
+# Search GenBank sequences for location
+
+# metadata_extraction <- lapply(zoon_risk$title, function(x){
+#   g <- tryCatch(entrez_search(db = "nuccore", term = x, retmax = 10000)$ids[1] %>%
+#                   entrez_summary(db = "nuccore") %>% 
+#                   purrr::flatten() %>%
+#                   .$subname,
+#                 error=function(e) NULL)
+#   Sys.sleep(5)
+#   return(g)
+# }
+# )
+
+#### MANUALLY RESOLVE PIECES FOR NOW BUT IN FUTURE ALSO PULL $subtype AND USE TO DYNAMICALLY ASSIGN COLUMNS TO METADATA
+metadata_data <- data.frame(metadata_data = unlist(metadata_extraction)) %>%
+  mutate(metadata_data = gsub("CEIRS#.*#\\|","",metadata_data)) %>%
+  separate_wider_delim(metadata_data, delim = "|", 
+                       too_few = "debug",
+                       too_many = "debug",
+                       names = stringr::str_split_1("strain|serotype|host|lab_host|country|segment|collection_date", pattern = "\\|"))
+
+# TIDY THIS UP LATER - ASSIGNS ABOUT 80% RIGHT BUT STILL NEEDS MANUAL FIXING FOR REMAINING 20%
+# USING COPYPASTE AND ALT + : TO ONLY SELECT THOSE IN FILTER ETC
+extract_last_capital_segment <- function(input_string) {
+  segments <- strsplit(input_string, "\\|")[[1]]
+  capital_segments <- segments[grepl("^[A-Z]", segments)]
+  if (length(capital_segments) > 0) {
+    return(tail(capital_segments, 1))
+  } else {
+    return(NA)  # or "" if you prefer
+  }
+}
+
+metadata_countries <- data.frame(metadata_data = unlist(metadata_extraction)) %>%
+  rowwise %>%
+  mutate(metadata_data = extract_last_capital_segment(metadata_data)) %>%
+  rename(clean_country = metadata_data)
+
+# bind_cols(metadata_data, metadata_countries) %>% write.csv("S3\\data\\full\\metadata_risk_preds_nz.csv")
+
+metadata_clean <- read.csv("S3\\data\\full\\metadata_risk_preds_nz.csv")
+
+zoon_risk %>% 
+  left_join(metadata_clean %>% mutate(strain = gsub(" ", "_", strain)),
+            by = c("title" = "strain")) %>%
+  rename(p_zoon = hzoon, prediction = pred) %>%
+  select(p_zoon, label, subtype, prediction,	title, src,	date,	clean_country) %>%
+  rename(country = clean_country) %>%
+  distinct() %>%
+  write.csv("S3\\data\\full\\zoon_risk_preds_nz.csv") 
 
 # Plot
 
@@ -372,14 +427,31 @@ fig_results_stack_raw_p01 <- stacked_raw %>%
   guides(color = "none")
 
 ggsave(paste0("S3\\figures_tables\\fig_results_stack_weight_raw_p01.png"), plot = fig_results_stack_raw_p01, width = 10, height = 5.5)
+# 
+# ggsave(paste0("S3\\figures_tables\\fig_results_stack_weight_raw_p01_poster.png"), plot = fig_results_stack_raw_p01, width = 10, height = 2)
 
 #######################################################
 # Permutation variable importance from stacked models #
 #######################################################
 
 varimp <- list.files(path = "S3\\analysis\\", pattern = "varimp_perm", full.names = TRUE) %>%
-  map_dfr(read.csv) %>%
-  separate(var, into = c("feat", "focgene"), sep="_(?=[^_]+$)", remove=FALSE)
+  purrr::map_dfr(read.csv) %>%
+  select(-X) %>%
+  separate(var, into = c("feat", "focgene"), sep="_(?=[^_]+$)", remove=FALSE) %>%
+  mutate(featset = case_when(
+    grepl("_Bias$", feat) ~ "nuc: composition",
+    grepl(paste0("^", paste0(rep("[A|C|G|T]", 2), collapse = ""), "$"), feat) ~ "nuc: 2-mers",
+    grepl(paste0("^", paste0(rep("[A|C|G|T]", 3), collapse = ""), "$"), feat) ~ "nuc: 3-mers",
+    grepl(paste0("^", paste0(rep("[A|C|G|T]", 4), collapse = ""), "$"), feat) ~ "nuc: 4-mers",
+    grepl(paste0("^", paste0(rep("[A|C|G|T]", 5), collapse = ""), "$"), feat) ~ "nuc: 5-mers",
+    grepl(paste0("^", paste0(rep("[A|C|G|T]", 6), collapse = ""), "$"), feat) ~ "nuc: 6-mers",
+    grepl("^DPC", feat) ~ "prot: 2-mers",
+    grepl("^CTDC", feat) ~ "prot: CTD-C",
+    grepl("^CTDT", feat) ~ "prot: CTD-T",
+    grepl("^CTDD", feat) ~ "prot: CTD-D",
+    grepl("^PAAC", feat) ~ "prot: pseudo-aac",
+    grepl("^CTriad", feat) ~ "prot: c.triad")
+  )
 
 varimp %>% arrange(AUC_loss)
 varimp %>% group_by(focgene) %>% summarise(mean = mean(AUC_loss)) %>% arrange(mean)
@@ -387,8 +459,26 @@ varimp %>% group_by(feat) %>% summarise(mean = mean(AUC_loss)) %>% arrange(mean)
 
 varimp %>%
   ggplot(aes(x = focgene, y = AUC_loss)) +
-  geom_violinplot(alpha = 0.9) +
+  geom_boxplot(alpha = 0.9) +
   theme_bw()
+
+### THIS ONLY SHOWS THE VARIMP PERMUTATIONS TESTED, I.E. IN THE ACTUAL STACKS.
+### WE COULD ADD IN ALL THE OTHER VARIMP VARIABLES NOT INCLUDED IN THE STACKS AS ZERO?
+### SO FILL OUT EVERY COMBO OF FEAT - PROT AND LEFT JOIN THE VARIMP VALUES
+
+# Box per featset*protein combo?
+
+varimp %>% 
+  ggplot(aes(x = focgene, y = AUC_loss, fill = featset)) +
+  geom_jitter(alpha = 0.7, shape = 21, size = 3.5, position = position_jitter(width = 0.2, seed = 1615)) +
+  theme_bw() +
+  scale_fill_manual(values =   c("#E69F00", "#F0E442", "#B2DF8A","#56B4E9","#CC79A7", "#33A02C", "#0072B2", "#D55E00","#6A3D9A", "#EEEEEE", "#666666", "#000000")) +
+  # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),      # poster colours
+  #       legend.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
+  #       axis.title.x = element_text(size=10),
+  #       axis.title.y = element_text(size=10)) +
+  ylab("AUROC loss") +
+  xlab("Protein")
 
 # Plot avg per feat per protein?
 
@@ -438,8 +528,9 @@ fig_results_cdc_error_weight <- pred_weight %>%
   ggplot(aes(x = emergence, y = med, ymin = upper, ymax = lower, color = host, fill = host, label = id)) +
   geom_errorbar(alpha = 0.4, lwd = 1.2, linewidth = 1.2, width=0) +
   geom_point() +
-  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_results.csv") %>% pull(threshold)), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_weight_results.csv") %>% pull(threshold)), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
   geom_text(hjust=-0.5, vjust=-0.2, show.legend  = FALSE) +
+  scale_y_continuous(limits = c(0, 1), expand = c(0,0.1)) +
   scale_x_continuous(limits = c(2.7, 7.7), expand = c(0,0)) +
   ylab("p(zoonotic))") +
   xlab("CDC IRAT emergence score") +
@@ -450,7 +541,7 @@ fig_results_cdc_error_weight <- pred_weight %>%
         axis.title.y = element_text(size=10),
         legend.title=element_blank(),
         legend.margin=margin(t = 0, unit='cm'),
-        legend.position = c(.14,.87),
+        legend.position = c(.82,.82),
         legend.key.size = unit(0.4, 'cm'))
 
-ggsave(paste0("S3\\figures_tables\\fig_results_cdc_poster_weight.png"), plot = fig_results_cdc_error_weight, width = 6.5, height = 3)
+ggsave(paste0("S3\\figures_tables\\fig_results_cdc_poster_weight.png"), plot = fig_results_cdc_error_weight, width = 6.5*2.5/3, height = 2.5)

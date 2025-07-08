@@ -586,8 +586,10 @@ dev.off()
 # Save chosen clusters protein-by-protein for genome mapping later #
 ####################################################################
 
-seqs_to_save <- read.csv(paste0("S3\\data\\full\\holdout_clusters\\full_70_7_labels.csv")) %>% 
-  filter(label == "zoon")
+foclabel <- "nz"
+
+seqs_to_save <- read.csv(paste0("S3\\data\\full\\holdout_clusters\\full\\ex_full_70_7_labels.csv")) %>% 
+  filter(label == foclabel)
 
 nrow(seqs_to_save)
 
@@ -604,7 +606,7 @@ for(focgene in c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")){
   
   nuc <- nuc_temp$string %>% DNAStringSet()
   names(nuc) <- nuc_temp$cluster_rep
-  writeXStringSet(nuc, filepath = paste0("S3\\data\\full\\mapping\\nuc\\zoon_clusterreps_",focgene,".FASTA"))
+  writeXStringSet(nuc, filepath = paste0("S3\\data\\full\\mapping\\nuc\\",foclabel,"_clusterreps_",focgene,".FASTA"))
   rm(nuc_temp, nuc)
   
   # Save cds sequences for alignment and mapping
@@ -615,7 +617,7 @@ for(focgene in c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")){
   
   cds <- cds_temp$string %>% DNAStringSet()
   names(cds) <- cds_temp$cluster_rep
-  writeXStringSet(cds, filepath = paste0("S3\\data\\full\\mapping\\cds\\zoon_clusterreps_",focgene,".FASTA"))
+  writeXStringSet(cds, filepath = paste0("S3\\data\\full\\mapping\\cds\\",foclabel,"_clusterreps_",focgene,".FASTA"))
   rm(cds_temp, cds)
   
   # Save prot sequences for alignment and mapping 
@@ -635,7 +637,7 @@ for(focgene in c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")){
 
   prot <- prot_temp$string %>% AAStringSet()
   names(prot) <- prot_temp$cluster_rep
-  writeXStringSet(prot, filepath = paste0("S3\\data\\full\\mapping\\prot\\zoon_clusterreps_",focgene,".FASTA"))
+  writeXStringSet(prot, filepath = paste0("S3\\data\\full\\mapping\\prot\\",foclabel,"_clusterreps_",focgene,".FASTA"))
   rm(prot_temp, prot, prot_strings)
   
 }
