@@ -1,7 +1,6 @@
 # History files
 .Rhistory
 .Rapp.history
-*.Rproj
 
 # Data not suitable for upload
 S3/data/ext
