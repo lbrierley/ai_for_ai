@@ -9,7 +9,11 @@
 #SBATCH --output=S3/batch_scripts/full_analysis.%J.stdout
 
 
+<<<<<<< HEAD
 source /hpscol02/tenant1/zoonosis-risk-ai/miniconda3/etc/profile.d/conda.sh
+=======
+source /hpspor01/tenant1/projects/zoonosis-risk-ai/miniconda3/etc/profile.d/conda.sh
+>>>>>>> 4620b91ce1c1251d0a5eaa0b0f21474ff69c7be6
 conda activate zoonosis-risk-ml
 
 

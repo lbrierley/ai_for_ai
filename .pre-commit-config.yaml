@@ -1,0 +1,28 @@
+repos:
+  - repo: 'https://github.com/pre-commit/pre-commit-hooks'
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-docstring-first
+      - id: check-json
+      - id: check-xml
+      - id: check-yaml
+      - id: debug-statements
+      - id: detect-private-key
+      # - id: no-commit-to-branch
+      #   args: ['--branch', 'master', '--pattern', '^(?!((hotfix|feature|bug)-[a-zA-Z-]{1,4}-[0-9]{1,4})).*']
+
+  - repo: 'https://github.com/kynan/nbstripout'
+    rev: 0.8.1
+    hooks:
+      - id: nbstripout
+
+  - repo: https://github.com/lorenzwalthert/precommit
+    rev: v0.4.3.9003
+    hooks:
+      - id: style-files
+        args: [--style_pkg=styler, --style_fun=tidyverse_style]
+      - id: lintr
+      - id: parsable-R
+      - id: no-browser-statement
+      - id: no-debug-statement

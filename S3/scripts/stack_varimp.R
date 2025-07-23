@@ -135,7 +135,7 @@ for (focgene in  c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")){
     varnames <- varnames[!grepl(paste0("^DPC_.*_", focgene), varnames)]
   }
   
-  if (!("prot_pseeac" %in% feats_in)){
+  if (!("prot_pseaac" %in% feats_in)){
     varnames <- varnames[!grepl(paste0("^PAAC_.*_", focgene), varnames)]
   }
   

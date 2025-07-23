@@ -143,26 +143,6 @@ allflu_nuc_df %<>%
                              duplicated(accession) == TRUE ~ 1,
                              TRUE ~ 0))
 
-# Plot whole genome sequence dates
-g1 <- allflu_wgs_df %>%
-  mutate(label = case_when(
-    label == "nz" ~ "avian",
-    label == "zoon" ~ "zoonotic",
-  )) %>%  
-  filter(!is.na(date) & date > as.Date("1990-01-01")) %>%
-  add_count(subtype, name = "sub_n") %>%
-  filter(sub_n > 750 | subtype %in% c("H3N8", "H5N1", "H5N6", "H7N3", "H7N4", "H7N9", "H9N2", "H10N8")) %>%
-  ggplot(aes(x = as.Date(date), fill = subtype)) +
-  geom_histogram(position = "stack", binwidth=365) +
-  scale_fill_manual(values = rev(c(RColorBrewer::brewer.pal(12, "Paired"), "black"))) +
-  scale_x_date(limits = c(as.Date("1990-01-01"), as.Date("2022-12-31")), date_labels =  "%Y") +
-  facet_grid(rows = vars(label), cols = vars(src), scales = "free_y") +
-  theme_bw() +
-  xlab("Date") +
-  ylab("Frequency")
-
-ggsave("S3\\figures_tables\\time_dist_wgs.png", plot = g1, width = 18, height = 6)
-
 # allflu_wgs_df %>%
 #   mutate(date = date %>% gsub("--", "-06-", .) %>% # assume midpoint for missing months
 #            gsub("-$", "-15", .) %>% # assume midpoint for missing days
@@ -606,8 +586,10 @@ dev.off()
 # Save chosen clusters protein-by-protein for genome mapping later #
 ####################################################################
 
-seqs_to_save <- read.csv(paste0("S3\\data\\full\\holdout_clusters\\full_70_7_labels.csv")) %>% 
-  filter(label == "zoon")
+foclabel <- "nz"
+
+seqs_to_save <- read.csv(paste0("S3\\data\\full\\holdout_clusters\\full\\ex_full_70_7_labels.csv")) %>% 
+  filter(label == foclabel)
 
 nrow(seqs_to_save)
 
@@ -624,7 +606,7 @@ for(focgene in c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")){
   
   nuc <- nuc_temp$string %>% DNAStringSet()
   names(nuc) <- nuc_temp$cluster_rep
-  writeXStringSet(nuc, filepath = paste0("S3\\data\\full\\mapping\\nuc\\zoon_clusterreps_",focgene,".FASTA"))
+  writeXStringSet(nuc, filepath = paste0("S3\\data\\full\\mapping\\nuc\\",foclabel,"_clusterreps_",focgene,".FASTA"))
   rm(nuc_temp, nuc)
   
   # Save cds sequences for alignment and mapping
@@ -635,7 +617,7 @@ for(focgene in c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")){
   
   cds <- cds_temp$string %>% DNAStringSet()
   names(cds) <- cds_temp$cluster_rep
-  writeXStringSet(cds, filepath = paste0("S3\\data\\full\\mapping\\cds\\zoon_clusterreps_",focgene,".FASTA"))
+  writeXStringSet(cds, filepath = paste0("S3\\data\\full\\mapping\\cds\\",foclabel,"_clusterreps_",focgene,".FASTA"))
   rm(cds_temp, cds)
   
   # Save prot sequences for alignment and mapping 
@@ -655,7 +637,7 @@ for(focgene in c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")){
 
   prot <- prot_temp$string %>% AAStringSet()
   names(prot) <- prot_temp$cluster_rep
-  writeXStringSet(prot, filepath = paste0("S3\\data\\full\\mapping\\prot\\zoon_clusterreps_",focgene,".FASTA"))
+  writeXStringSet(prot, filepath = paste0("S3\\data\\full\\mapping\\prot\\",foclabel,"_clusterreps_",focgene,".FASTA"))
   rm(prot_temp, prot, prot_strings)
   
 }
