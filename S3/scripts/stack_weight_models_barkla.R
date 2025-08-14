@@ -53,19 +53,9 @@ results_xgb <- read.csv(paste0("results_", "2025_03_14", ".csv"), na.strings = "
 results_svmlin <- read.csv(paste0("results_", "2025_03_13", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "svmlin")
 results_svmrad <- read.csv(paste0("results_", "2025_03_12", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "svm")
 
-# Define combinations to remove
-remove <- data.frame(
-  featset = c("nuc_3mer"),
-  focgene = c("NA")
-)
-
-# Remove rows matching the combinations
-results_svmrad_adjusted <- results_svmrad[!(results_svmrad$featset %in% remove$featset & 
-                                              results_svmrad$focgene %in% remove$focgene), ]
-
 all_res <- bind_rows(results_rf,
                      results_svmlin,
-                     results_svmrad_adjusted,
+                     results_svmrad,
                      results_xgb,
                      results_plr) 
 
