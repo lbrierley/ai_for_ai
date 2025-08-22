@@ -11,6 +11,8 @@ S3/data/YX
 S3/data/full/*
 !S3/data/full/mapping
 S3/analysis/subtyperaw
+S3/analysis/stack_tests
+S3/analysis/archive
 
 # Temporary folder/files
 tmp/
@@ -27,6 +29,8 @@ S3/scripts/mmseqs-win64
 S3/scripts/process_YX_data_LB_17_1_23.R
 S3/scripts/extract_GenBank_flu.R
 S3/drafts
+S3/notes
+
 
 # Session Data files
 .RData
