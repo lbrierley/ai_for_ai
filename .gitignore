@@ -4,15 +4,15 @@
 *.Rproj
 
 # Data not suitable for upload
-S3/data/ext
+S3/data/ext/
 S3/data/full/**
 !S3/data/full/holdout_clusters/
 !S3/data/full/allflu_wgs_ref.csv
-S3/data/irat
-S3/data/partial
-S3/data/YX
-S3/analysis/subtyperaw
-S3/analysis/stack_tests
+S3/data/irat/
+S3/data/partial/
+S3/data/YX/
+S3/analysis/subtyperaw/
+S3/analysis/stack_tests/
 
 
 # Temporary folder/files
@@ -35,12 +35,13 @@ S3/figures_tables/ext
 S3/figures_tables/pre_cluster
 S3/drafts
 S3/notes
-
+*.sh
 
 # Session Data files
 .RData
 .RDataTmp
 *.rds
+!S3/data/fold_indices_list.rds
 
 # User-specific files
 .Ruserdata
