@@ -1,2 +1,0 @@
-"","threshold","Accuracy","Kappa","AccuracyLower","AccuracyUpper","AccuracyNull","AccuracyPValue","McnemarPValue","AUC","Sensitivity","Specificity","Pos Pred Value","Neg Pred Value","Precision","Recall","F1","Prevalence","Detection Rate","Detection Prevalence","Balanced Accuracy"
-"1",0.012,0.917,0.779,0.906,0.927,0.769,0,0,0.952,0.9,0.922,0.777,0.968,0.777,0.9,0.834,0.231,0.208,0.268,0.911
