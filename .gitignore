@@ -4,15 +4,14 @@
 *.Rproj
 
 # Data not suitable for upload
-S3/data/ext
-S3/data/irat
-S3/data/partial
-S3/data/YX
-S3/data/full/*
-!S3/data/full/mapping
+S3/data/*
+!S3/data/fold_indices_list.rds
+!S3/data/full/holdout_clusters/
+!S3/data/full/allflu_wgs_ref.csv
+
 S3/analysis/subtyperaw
 S3/analysis/stack_tests
-S3/analysis/archive
+
 
 # Temporary folder/files
 tmp/
@@ -20,6 +19,8 @@ tmp/
 # Defunct files
 *DEFUNCT.R
 S3/figures_tables/outdated
+S3/figures_tables/varimp_rf
+S3/analysis/archive
 S3/scripts/old
 
 # Other do not upload
@@ -28,6 +29,8 @@ S3/analysis/stacks_backup
 S3/scripts/mmseqs-win64
 S3/scripts/process_YX_data_LB_17_1_23.R
 S3/scripts/extract_GenBank_flu.R
+S3/figures_tables/ext
+S3/figures_tables/pre_cluster
 S3/drafts
 S3/notes
 
