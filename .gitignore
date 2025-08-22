@@ -4,12 +4,13 @@
 *.Rproj
 
 # Data not suitable for upload
-S3/data/*
-!S3/data/full/mapping
-!S3/data/fold_indices_list.rds
+S3/data/ext
+S3/data/full/**
 !S3/data/full/holdout_clusters/
 !S3/data/full/allflu_wgs_ref.csv
-
+S3/data/irat
+S3/data/partial
+S3/data/YX
 S3/analysis/subtyperaw
 S3/analysis/stack_tests
 
