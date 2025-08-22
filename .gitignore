@@ -11,7 +11,6 @@ S3/data/YX
 S3/data/full/*
 !S3/data/full/mapping
 S3/analysis/subtyperaw
-S3/analysis/stacks/stack_tests
 
 # Temporary folder/files
 tmp/
