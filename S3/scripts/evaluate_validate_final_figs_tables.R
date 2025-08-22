@@ -12,6 +12,7 @@ library(magrittr)
 library(ggplot2)
 library(ggrepel)
 library(rentrez)
+library(patchwork)
 
 allflu_wgs_ref <- read.csv("S3\\data\\full\\allflu_wgs_ref.csv")
 
@@ -75,23 +76,31 @@ fig_results_heat_AUC_70_7 <- all_res %>%
     featset == "prot_ctdc" ~ "prot: CTD-C",
     featset == "prot_ctdt" ~ "prot: CTD-T",
     featset == "prot_ctdd" ~ "prot: CTD-D",
-    featset == "prot_ctriad" ~ "prot: c.triad",
-    featset == "prot_pseaac" ~ "prot: pseudo-aac"),
-    focgene = factor(focgene, levels = c("PB2", "PB1", "PA", "HA", "NP", "NA", "M1", "NS1"))
+    featset == "prot_ctriad" ~ "prot: CTriad",
+    featset == "prot_pseaac" ~ "prot: PseAAC"),
+    featset = as.factor(featset),
+    method = case_when(
+      method == "glmnet" ~ "PLR",
+      method == "rf" ~ "RF",
+      method == "svm" ~ "RSVM",
+      method == "svmlin" ~ "SVM",
+      method == "xgb" ~ "XGB",
+    ),
+    focgene = factor(focgene, levels = c("PB2", "PB1", "PA", "HA", "NP", "NA", "M1", "NS1")),
   ) %>%
   gather(metric, value, -method, -featset, -focgene) %>%
   filter(metric %in% c("AUC")) %>%
   mutate(value = as.numeric(value)) %>%
-  ggplot(aes(x = focgene, y = featset, fill = value)) + 
+  ggplot(aes(x = focgene, y = factor(featset, levels = rev(levels(featset))), fill = value)) + 
   geom_tile(color="white") +
-  scale_fill_distiller("AUC", palette = "RdBu", limits = c(0,1)) +
+  scale_fill_distiller("AUROC", palette = "RdBu", limits = c(0,1)) +
   #  scale_fill_viridis_c("AUC") +
   facet_wrap(~ method, nrow=1) +
   theme_bw() +
   # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),      # poster colours
   #       legend.key = element_rect(fill = "#F2F6F9", color = "#F2F6F9")) +
-  theme(axis.title.x=element_blank(),
-        axis.title.y=element_blank())
+  xlab("Influenza virus gene/protein") +
+  ylab("Feature set")
 
 ggsave("S3\\figures_tables\\all_results_heat_AUC_70_7.png", plot = fig_results_heat_AUC_70_7, width = 15, height = 3)
 
@@ -113,21 +122,22 @@ fig_results_heat_AUC_70_7_one <- all_res %>%
     featset == "prot_ctdc" ~ "prot: CTD-C",
     featset == "prot_ctdt" ~ "prot: CTD-T",
     featset == "prot_ctdd" ~ "prot: CTD-D",
-    featset == "prot_ctriad" ~ "prot: c.triad",
-    featset == "prot_pseaac" ~ "prot: pseudo-aac"),
+    featset == "prot_ctriad" ~ "prot: CTriad",
+    featset == "prot_pseaac" ~ "prot: PseAAC"),
+    featset = as.factor(featset),
     method = case_when(
-      method == "glmnet" ~ "LASSO",
+      method == "glmnet" ~ "PLR",
       method == "rf" ~ "RF",
-      method == "svm" ~ "SVM (lin)",
-      method == "svmlin" ~ "SVM (rad)",
-      method == "xgb" ~ "XGBoost",
+      method == "svm" ~ "RSVM",
+      method == "svmlin" ~ "SVM",
+      method == "xgb" ~ "XGB",
     ),
     focgene = factor(focgene, levels = c("PB2", "PB1", "PA", "HA", "NP", "NA", "M1", "NS1"))
   ) %>%
   gather(metric, value, -method, -featset, -focgene) %>%
   filter(metric %in% c("AUC")) %>%
   mutate(value = as.numeric(value)) %>%
-  ggplot(aes(x = focgene, y = featset, fill = value)) + 
+  ggplot(aes(x = focgene, y = factor(featset, levels = rev(levels(featset))), fill = value)) + 
   geom_tile(color="white") +
   geom_point(aes(pch = method), color = "black", size = 2) +
   scale_fill_distiller("AUROC", palette = "RdBu", limits = c(0,1)) +
@@ -138,16 +148,56 @@ fig_results_heat_AUC_70_7_one <- all_res %>%
   #       legend.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
   #       axis.title.x = element_text(size=10),
   #       axis.title.y = element_text(size=10)) +
-  xlab("Protein model") +
+  xlab("Influenza virus gene/protein") +
   ylab("Feature set")
 
 ggsave("S3\\figures_tables\\all_results_heat_AUC_70_7_one.png", plot = fig_results_heat_AUC_70_7_one, width = 6, height = 3.5)
 
+fig_results_heat_F1_70_7 <- all_res %>%
+  group_by(method, featset, focgene) %>%
+  summarise(F1 = mean(F1)) %>%
+  ungroup %>%
+  mutate(featset = case_when(
+    featset == "cds_compbias" ~ "nuc: composition",
+    featset == "nuc_2mer" ~ "nuc: 2-mers",
+    featset == "nuc_3mer" ~ "nuc: 3-mers",
+    featset == "nuc_4mer" ~ "nuc: 4-mers",
+    featset == "nuc_5mer" ~ "nuc: 5-mers",
+    featset == "nuc_6mer" ~ "nuc: 6-mers",
+    featset == "prot_2mer" ~ "prot: 2-mers",
+    featset == "prot_ctdc" ~ "prot: CTD-C",
+    featset == "prot_ctdt" ~ "prot: CTD-T",
+    featset == "prot_ctdd" ~ "prot: CTD-D",
+    featset == "prot_ctriad" ~ "prot: CTriad",
+    featset == "prot_pseaac" ~ "prot: PseAAC"),
+    featset = as.factor(featset),
+    method = case_when(
+      method == "glmnet" ~ "PLR",
+      method == "rf" ~ "RF",
+      method == "svm" ~ "RSVM",
+      method == "svmlin" ~ "SVM",
+      method == "xgb" ~ "XGB",
+    ),
+    focgene = factor(focgene, levels = c("PB2", "PB1", "PA", "HA", "NP", "NA", "M1", "NS1"))
+  ) %>%
+  gather(metric, value, -method, -featset, -focgene) %>%
+  filter(metric %in% c("F1")) %>%
+  mutate(value = as.numeric(value)) %>%
+  ggplot(aes(x = focgene, y = factor(featset, levels = rev(levels(featset))), fill = value)) +
+  geom_tile(color="white") +
+  scale_fill_viridis_c("F1") +
+  facet_wrap(~ method, nrow=1) +
+  theme_bw() +
+  # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
+  #       legend.key = element_rect(fill = "#F2F6F9", color = "#F2F6F9")) +
+  xlab("Influenza virus gene/protein") +
+  ylab("Feature set")
 
+ggsave("S3\\figures_tables\\all_results_heat_F1_70_7.png", plot = fig_results_heat_F1_70_7, width = 15, height = 3)
 
-# fig_results_heat_F1_70_7 <- all_res %>%
+# fig_results_heat_Sensitivity_70_7 <- all_res %>%
 #   group_by(method, featset, focgene) %>%
-#   summarise(F1 = mean(F1)) %>% 
+#   summarise(Sensitivity = mean(Sensitivity)) %>%
 #   ungroup %>%
 #   mutate(featset = case_when(
 #     featset == "cds_compbias" ~ "nuc: composition",
@@ -160,56 +210,30 @@ ggsave("S3\\figures_tables\\all_results_heat_AUC_70_7_one.png", plot = fig_resul
 #     featset == "prot_ctdc" ~ "prot: CTD-C",
 #     featset == "prot_ctdt" ~ "prot: CTD-T",
 #     featset == "prot_ctdd" ~ "prot: CTD-D",
-#     featset == "prot_ctriad" ~ "prot: c.triad",
-#     featset == "prot_pseaac" ~ "prot: pseudo-aac"),
+#     featset == "prot_ctriad" ~ "prot: CTriad",
+#     featset == "prot_pseaac" ~ "prot: PseAAC"),
+#     featset = as.factor(featset),
+#     method = case_when(
+#       method == "glmnet" ~ "PLR",
+#       method == "rf" ~ "RF",
+#       method == "svm" ~ "RSVM",
+#       method == "svmlin" ~ "SVM",
+#       method == "xgb" ~ "XGB",
+#     ),
 #     focgene = factor(focgene, levels = c("PB2", "PB1", "PA", "HA", "NP", "NA", "M1", "NS1"))
 #   ) %>%
 #   gather(metric, value, -method, -featset, -focgene) %>%
 #   filter(metric %in% c("F1")) %>%
 #   mutate(value = as.numeric(value)) %>%
-#   ggplot(aes(x = focgene, y = featset, fill = value)) + 
+#   ggplot(aes(x = focgene, y = factor(featset, levels = rev(levels(featset))), fill = value)) +
 #   geom_tile(color="white") +
 #   scale_fill_viridis_c("F1") +
 #   facet_wrap(~ method, nrow=1) +
 #   theme_bw() +
-#   theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
-#         legend.key = element_rect(fill = "#F2F6F9", color = "#F2F6F9")) +
-#   theme(axis.title.x=element_blank(),
-#         axis.title.y=element_blank())
-# 
-# ggsave("S3\\figures_tables\\all_results_heat_F1_70_7.png", plot = fig_results_heat_F1_70_7, width = 15, height = 3)
-
-# fig_results_heat_Sensitivity_70_7 <- all_res %>%
-#   group_by(method, featset, focgene) %>%
-#   summarise(Sensitivity = mean(Sensitivity)) %>% 
-#   ungroup %>%
-#   mutate(featset = case_when(
-#     featset == "cds_compbias" ~ "nuc: composition",
-#     featset == "nuc_2mer" ~ "nuc: 2-mers",
-#     featset == "nuc_3mer" ~ "nuc: 3-mers",
-#     featset == "nuc_4mer" ~ "nuc: 4-mers",
-#     featset == "nuc_5mer" ~ "nuc: 5-mers",
-#     featset == "nuc_6mer" ~ "nuc: 6-mers",
-#     featset == "prot_2mer" ~ "prot: 2-mers",
-#     featset == "prot_ctdc" ~ "prot: CTD-C",
-#     featset == "prot_ctdt" ~ "prot: CTD-T",
-#     featset == "prot_ctdd" ~ "prot: CTD-D",
-#     featset == "prot_ctriad" ~ "prot: c.triad",
-#     featset == "prot_pseaac" ~ "prot: pseudo-aac"),
-#     focgene = factor(focgene, levels = c("PB2", "PB1", "PA", "HA", "NP", "NA", "M1", "NS1"))
-#   ) %>%
-#   gather(metric, value, -method, -featset, -focgene) %>%
-#   filter(metric %in% c("Sensitivity")) %>%
-#   mutate(value = as.numeric(value)) %>%
-#   ggplot(aes(x = focgene, y = featset, fill = value)) + 
-#   geom_tile(color="white") +
-#   scale_fill_viridis_c("Sensitivity") +
-#   facet_wrap(~ method, nrow=1) +
-#   theme_bw() +
-#   theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
-#         legend.key = element_rect(fill = "#F2F6F9", color = "#F2F6F9")) +
-#   theme(axis.title.x=element_blank(),
-#         axis.title.y=element_blank())
+#   # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
+#   #       legend.key = element_rect(fill = "#F2F6F9", color = "#F2F6F9")) +
+#   xlab("Influenza virus gene/protein") +
+#   ylab("Feature set")
 # 
 # ggsave("S3\\figures_tables\\all_results_heat_Sensitivity_70_7.png", plot = fig_results_heat_Sensitivity_70_7, width = 15, height = 3)
 
@@ -234,7 +258,7 @@ mod_count <- stacked_coef %>%
 mod_count %>% 
   dplyr::slice(1:20)
 
-# By magnitude (≈ variable importance)
+# By magnitude (could be considered variable importance)
 
 mod_mag <- stacked_coef %>% 
   tidyr::expand(param, subtype) %>% 
@@ -248,6 +272,8 @@ mod_mag %>%
   dplyr::slice(1:20)
 
 mod_mag %>% left_join(mod_count) %>% dplyr::slice(1:20)
+
+# Save both
 
 mod_mag %>% left_join(mod_count) %>%
   separate_wider_delim(param, delim = "_", names = c("method", "feattype", "feat", "focgene")) %>%
@@ -449,39 +475,131 @@ varimp <- list.files(path = "S3\\analysis\\", pattern = "varimp_perm", full.name
     grepl("^CTDC", feat) ~ "prot: CTD-C",
     grepl("^CTDT", feat) ~ "prot: CTD-T",
     grepl("^CTDD", feat) ~ "prot: CTD-D",
-    grepl("^PAAC", feat) ~ "prot: pseudo-aac",
-    grepl("^CTriad", feat) ~ "prot: c.triad")
+    grepl("^PAAC", feat) ~ "prot: PseAAC",
+    grepl("^CTriad", feat) ~ "prot: CTriad")
   )
+varimp %>% arrange(-AUC_loss) %>% select(-var)
 
-varimp %>% arrange(AUC_loss)
-varimp %>% group_by(focgene) %>% summarise(mean = mean(AUC_loss)) %>% arrange(mean)
-varimp %>% group_by(feat) %>% summarise(mean = mean(AUC_loss)) %>% arrange(mean)
+varimp %>% group_by(focgene) %>% summarise(mean = mean(AUC_loss)) %>% arrange(-mean)
+varimp %>% group_by(feat) %>% summarise(mean = mean(AUC_loss)) %>% arrange(-mean)
 
 varimp %>%
+  filter(AUC_loss > 0) %>%
   ggplot(aes(x = focgene, y = AUC_loss)) +
   geom_boxplot(alpha = 0.9) +
+  scale_y_log10() +
   theme_bw()
 
-### THIS ONLY SHOWS THE VARIMP PERMUTATIONS TESTED, I.E. IN THE ACTUAL STACKS.
-### WE COULD ADD IN ALL THE OTHER VARIMP VARIABLES NOT INCLUDED IN THE STACKS AS ZERO?
-### SO FILL OUT EVERY COMBO OF FEAT - PROT AND LEFT JOIN THE VARIMP VALUES
+##  Point plot
+# varimp %>% 
+#   filter(AUC_loss > 0) %>%
+#   ggplot(aes(x = focgene, y = AUC_loss, fill = featset)) +
+#   geom_jitter(alpha = 0.7, shape = 21, size = 3.5, position = position_jitter(width = 0.4, seed = 1615)) +
+#   theme_bw() +
+#   scale_fill_manual(values =   c("#E69F00", "#F0E442", "#B2DF8A","#56B4E9","#CC79A7", "#33A02C", "#0072B2", "#D55E00","#6A3D9A", "#EEEEEE", "#666666", "#000000")) +
+#   # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),      # poster colours
+#   #       legend.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
+#   #       axis.title.x = element_text(size=10),
+#   #       axis.title.y = element_text(size=10)) +
+#   scale_y_log10() +
+#   ylab("AUROC loss") +
+#   xlab("Influenza virus gene/protein")
 
-# Box per featset*protein combo?
-
-varimp %>% 
-  ggplot(aes(x = focgene, y = AUC_loss, fill = featset)) +
-  geom_jitter(alpha = 0.7, shape = 21, size = 3.5, position = position_jitter(width = 0.2, seed = 1615)) +
+# Ordered plot
+fig_varimp_ordered <- varimp %>% 
+  filter(AUC_loss > 0) %>%
+  mutate(label = paste0(focgene, ", ", featset),
+         label = forcats::fct_reorder(label, AUC_loss, .fun = mean, .desc = TRUE)) %>%
+  ggplot(aes(x = label, y = AUC_loss, fill = focgene)) +
+  geom_boxplot(alpha = 0.9) +
   theme_bw() +
-  scale_fill_manual(values =   c("#E69F00", "#F0E442", "#B2DF8A","#56B4E9","#CC79A7", "#33A02C", "#0072B2", "#D55E00","#6A3D9A", "#EEEEEE", "#666666", "#000000")) +
+  scale_fill_manual(values = cbbPalette_ordered) +
   # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),      # poster colours
   #       legend.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
   #       axis.title.x = element_text(size=10),
   #       axis.title.y = element_text(size=10)) +
+  scale_y_log10() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.title=element_blank()) +
+  xlab("Influenza virus gene/protein") +
+  ylab("AUROC loss")
+
+ggsave("S3\\figures_tables\\permut_varimp_ordered.png", plot = fig_varimp_ordered, width = 14, height = 5)
+
+##############################
+# Model interrogation figure #
+##############################
+
+# Plot models retained in at least 5 stacks
+pmc_df <- mod_count %>%
+  separate_wider_delim(param, delim = "_", names = c("method", "feattype", "feat", "focgene"), cols_remove = FALSE) %>%
+  mutate(focgene = as.factor(focgene)) %>%
+  filter(n >= 5) %>%
+  mutate(method = case_when(
+    method == "glmnet" ~ "PLR",
+    method == "rf" ~ "RF",
+    method == "svm" ~ "RSVM",
+    method == "svmlin" ~ "SVM",
+    method == "xgb" ~ "XGB",
+  )) %>%
+  mutate(label = paste0(method, ", ", feattype, "_", feat),
+         label = gsub("cds_compbias", "nuc: composition", label),
+         label = gsub("nuc_2mer", "nuc: 2-mers", label),
+         label = gsub("nuc_3mer", "nuc: 3-mers", label),
+         label = gsub("nuc_4mer", "nuc: 4-mers", label),
+         label = gsub("nuc_5mer", "nuc: 5-mers", label),
+         label = gsub("nuc_6mer", "nuc: 6-mers", label),
+         label = gsub("prot_2mer", "prot: 2-mers", label),
+         label = gsub("prot_ctdc", "prot: CTD-C", label),
+         label = gsub("prot_ctdt", "prot: CTD-T", label),
+         label = gsub("prot_ctdd", "prot: CTD-D", label),
+         label = gsub("prot_ctriad", "prot: CTriad", label),
+         label = gsub("prot_pseaac", "prot: PseAAC", label)) %>%
+  mutate(param = forcats::fct_reorder(param, n, .desc = FALSE))
+
+fig_modcount <- pmc_df %>%
+  ggplot(aes(x = param, 
+             y = n, 
+             fill = focgene)) +
+  geom_bar(alpha = 0.9, stat = "identity", show.legend = TRUE) +
+  theme_bw() +
+  scale_fill_manual(values = cbbPalette_ordered, drop = FALSE) +
+  scale_x_discrete(labels=pmc_df$label) +
+  scale_y_continuous(expand = c(0, 0.1), breaks = c(0:11)) +
+  # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),      # poster colours
+  #       legend.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
+  #       axis.title.x = element_text(size=10),
+  #       axis.title.y = element_text(size=10)) +
+  ylab("N stacks") +
+  xlab("Machine learning model") +
+  coord_flip() +
+  theme(legend.title=element_blank()) +
+  guides(fill = guide_legend(nrow=1))
+
+# Plot spread of variable importances for each individual feature
+fig_varimp <- varimp %>% 
+  filter(AUC_loss > 0) %>%
+  ggplot(aes(x = focgene, y = AUC_loss, fill = focgene)) +
+  geom_boxplot(alpha = 0.9) +
+  theme_bw() +
+  scale_fill_manual(values = cbbPalette_ordered) +
+  # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),      # poster colours
+  #       legend.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
+  #       axis.title.x = element_text(size=10),
+  #       axis.title.y = element_text(size=10)) +
+  scale_y_log10() +
   ylab("AUROC loss") +
-  xlab("Protein")
+  xlab("Influenza virus gene/protein") +
+  facet_wrap(~ featset, nrow=4) +
+  guides(fill = "none")
 
-# Plot avg per feat per protein?
+fig_varimp_combi <- fig_modcount + fig_varimp +
+  plot_annotation(tag_levels = 'A') +
+  plot_layout(widths = c(1,3), guides = 'collect') &
+  theme(legend.position = "bottom")
 
+
+ggsave("S3\\figures_tables\\model_count_permut_varimp.png", plot = fig_varimp_combi, width = 12, height = 6.5)
 
 #####################################
 # Performance figs on external data #

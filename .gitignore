@@ -27,6 +27,7 @@ S3/scripts/mmseqs-win64
 S3/scripts/process_YX_data_LB_17_1_23.R
 S3/scripts/extract_GenBank_flu.R
 S3/drafts
+S3/notes
 
 # Session Data files
 .RData
