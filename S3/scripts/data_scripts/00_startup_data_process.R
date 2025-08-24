@@ -60,20 +60,20 @@ holdout_nz <- c("H4N6", "H16N3", "H4N8", "H8N4")
 ###############################
 
 header(verbose, "Loading custom functions", padding=0)
-source("S3\\scripts\\data_scripts\\functions.R")
+source("S3\\scripts\\data_scripts\\01_functions.R")
 
 header(verbose, "Extracting and processing sequence data", padding=0)
-source("S3\\scripts\\data_scripts\\process_GISAID_NCBI_data.R")
+source("S3\\scripts\\data_scripts\\02_process_GISAID_NCBI_data.R")
 
 if(recalculate_feat_sets == TRUE) {
   header(verbose, "Calculating genomic and proteomic feature sets", padding=0)
-  source("S3\\scripts\\data_scripts\\calc_feats.R")
+  source("S3\\scripts\\data_scripts\\03_calc_feats.R")
 }
 
 if(recalculate_cluster == TRUE) {
 header(verbose, "Clustering sequences with MMseqs2", padding=0)
-source("S3\\scripts\\data_scripts\\cluster_seqs.R")
+source("S3\\scripts\\data_scripts\\04_cluster_seqs.R")
 }
 
 header(verbose, "Processing chosen sequence clusters", padding=0)
-source("S3\\scripts\\data_scripts\\process_clusts.R")
+source("S3\\scripts\\data_scripts\\05_process_clusts.R")

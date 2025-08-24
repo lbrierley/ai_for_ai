@@ -5,8 +5,8 @@
 
 # Data not suitable for upload
 S3/data/ext/
-S3/data/full/**
-!S3/data/full/holdout_clusters/
+S3/data/full/*
+!S3/data/full/holdout_clusters
 !S3/data/full/allflu_wgs_ref.csv
 S3/data/irat/
 S3/data/partial/

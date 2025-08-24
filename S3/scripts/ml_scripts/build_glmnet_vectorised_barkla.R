@@ -74,7 +74,7 @@ glmnet_fun <- function(subtype){
   # Run ML models #
   #################
   
-  # Train and validate glmnet (tuning mtry, min.node.size parameters) through 5-fold cross-validation
+  # Train and validate glmnet through 5-fold cross-validation
   # Store result as list of n ensemble models
   train(x = train %>% select(all_of(preds)),
         y = train %>% pull(label),
@@ -93,7 +93,7 @@ glmnet_fun <- function(subtype){
                                  classProbs = TRUE,
 								 savePredictions = TRUE),
         tuneGrid = expand.grid(
-      alpha = c(0,0.5,1),         # mixing parameter (0 = ridge, 0.5 = elastic, 1 = lasso)
+      alpha = c(0,0.5,1),                      # mixing parameter (0 = ridge, 0.5 = elastic, 1 = lasso)
       lambda = c(0.001, 0.01, 0.1, 1, 10))     # regularisation parameter
   )%>%
     return()
