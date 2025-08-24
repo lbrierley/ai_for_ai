@@ -2,6 +2,7 @@
 # Define functions #
 ####################
 
+# Create data from specific NCBI Flu fasta header and clean metadata
 process_NCBI_seq <- function(x, label, type){
   df <- data.frame(title = x %>% names(), 
                    length = x %>% width()) 
@@ -88,6 +89,7 @@ process_NCBI_seq <- function(x, label, type){
   return(df)
 }
 
+# Create data from specific GISAID fasta header and clean metadata
 process_GISAID_seq <- function(x, label, type){
   df <- data.frame(title = x %>% names(), 
                    length = x %>% width()) 
@@ -150,6 +152,7 @@ process_GISAID_seq <- function(x, label, type){
   return(df)
 }
 
+# Create data from specific NCBI Virus fasta header and clean metadata
 process_NV_seq <- function(x, label, type){
   df <- data.frame(title = x %>% names(), 
                    length = x %>% width()) 
@@ -191,6 +194,7 @@ process_NV_seq <- function(x, label, type){
   
 }
 
+# Bind ORFs into a data frame, and return the longest ORF
 bind_ORF <- function(x) {
   
   df <- findORFs(x, startCodon="ATG") %>%
@@ -204,13 +208,14 @@ bind_ORF <- function(x) {
     
     df <- df %>% 
       arrange(-width) %>%
-      slice(1) %>%
+      slice(1) %>%  # Select and keep only the longest ORF
       select(start, end)
   }   
   
   return(df)
 }
 
+# Produce data frame of nucleotide, dinucleotide, codon, and optionally, codon pair frequency
 calc_composition_counts <- function(x, codonpairs = FALSE){
   
   df <- cbind(data.frame(
@@ -247,6 +252,7 @@ calc_composition_counts <- function(x, codonpairs = FALSE){
   
 }
 
+# Produce data frame of k-mer frequency
 calc_kmer_counts <- function(x, k, overlap = TRUE, rescale = TRUE){
   
   df <- bind_cols(data.frame(
@@ -264,6 +270,7 @@ calc_kmer_counts <- function(x, k, overlap = TRUE, rescale = TRUE){
   
 }
 
+# Produce nucleotide, dinucleotide, codon, and optionally, codon pair frequency into composition bias features (e.g., adjusting for expectation based on underlying nucleotide composition)
 calc_composition_bias <- function(df, codonpairs = FALSE){
   
   # Calculate total nucleotides
@@ -404,6 +411,7 @@ calc_composition_bias <- function(df, codonpairs = FALSE){
   return(df)
 }
 
+# Replace incompatible characters in nucleotide fasta headers for iFeaturesOmega
 nuc_fasta_name_clean <- function(filename){
   fasta <- readSet(file = filename)
   names(fasta) <- names(fasta) %>% 
@@ -413,6 +421,7 @@ nuc_fasta_name_clean <- function(filename){
   rm(fasta)
 }
 
+# Replace incompatible characters in protein fasta headers for iFeaturesOmega
 prot_fasta_name_clean <- function(filename){
   fasta <- readAAStringSet(file = filename)
   names(fasta) <- names(fasta) %>% 
@@ -420,284 +429,4 @@ prot_fasta_name_clean <- function(filename){
     gsub(">", "", .)      # Remove special characters (that should not be present anyway), else iFeaturesOmega will not parse FASTA properly
   writeXStringSet(fasta, file = filename)
   rm(fasta)
-}
-
-####################
-# Define functions - old and unused, if you use them put them in the above
-####################
-
-# Adapted from https://stackoverflow.com/a/27626007
-batch <- function(x, n) 
-{mapply(function(a, b) (x[a:b]), seq.int(from=1, to=length(x), by=n), pmin(seq.int(from=1, to=length(x), by=n)+(n-1), length(x)), SIMPLIFY=FALSE)}
-
-
-# Set up accessible colour blindness palette
-cbbPalette <- c("#E69F00", "#F0E442", "#56B4E9", "#009E73", "#D55E00")
-cbbPalette_full <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-cbbPalette_bw <- c("#FFFFFF", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-cbbPalette_ordered <- c("#D55E00", "#E69F00", "#F0E442", "#009E73", "#56B4E9", "#0072B2", "#CC79A7", "#999999")
-cbbPalette_ordered_bw <- c("#D55E00", "#E69F00", "#F0E442", "#009E73", "#56B4E9", "#0072B2", "#CC79A7", "#b9b9b9")
-
-genomic_pca <- function(df, vars, outcome, choices = 1:2){
-  
-  df_name <- deparse(substitute(df))
-  
-  df %<>% as.data.frame
-  
-  # Merge in relevant outcome column if it doesn't already exist
-  if (!(outcome %in% names(df))){
-    df %<>% left_join(allcov_df %>% select(childtaxa_id, !! sym(outcome)),
-                      by = c("taxid" = "childtaxa_id"))
-  }
-  
-  # Create relevant principal components analysis
-  
-  if (vars == "dinucs"){
-    pca <- df %>% select(matches("^[A|C|G|T][A|C|G|T]_p[1|2|3]_Bias$")) %>% prcomp
-  } else if (vars == "codons"){
-    pca <- df %>% select(matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$")) %>% prcomp
-  } else if (vars == "codons_nostop"){
-    pca <- df %>% select(matches("^[A|C|G|T][A|C|G|T][A|C|G|T]_Bias$")) %>% select(-c(TAG_Bias, TAA_Bias, TGA_Bias)) %>% prcomp
-  } else if (vars == "aa"){
-    pca <- df %>% select(matches("^.*_aa_Bias$")) %>% prcomp
-  } else {
-    stop("no valid variables selected")
-  }
-  
-  # Write summary
-  sink(paste0("figs\\pcasumm_",df_name,"_",vars,".txt"))
-  summary(pca)
-  sink()
-  
-  # Screeplot
-  ggscreeplot(pca) +
-    geom_hline(yintercept=1/length(pca$sdev), alpha = 0.5, color="dodgerblue", lty="dashed", size=1.5) +
-    theme_bw() +
-    ggsave(paste0("figs\\scree_",df_name,"_",vars,".png"), width = 8, height = 5)
-  
-  # Biplot
-  g <- ggbiplot(pca,
-                choices = choices,
-                groups = df[, outcome],
-                ellipse = TRUE,
-                alpha = 0.4,
-                varname.abbrev=TRUE) +
-    geom_point(alpha=0, aes(fill= df[, outcome], label=df$childtaxa_name)) +
-    theme(legend.position='none') +
-    theme_bw()
-  ggplotly(g) %>% hide_legend()
-  
-}
-
-ml_extractor <- function(f, type="full"){
-  
-  if (f == "AUC"){
-    y <- function(x) {x$AUC}
-  }
-  
-  if (f == "acc"){
-    y <- function(x) {x$matrix_test$overall["Accuracy"]}
-  }
-  
-  if (f == "TSS"){
-    y <- function(x) {as.numeric(x$matrix_test$byClass["Sensitivity"] + x$matrix_test$byClass["Specificity"] - 1)}
-  }
-  
-  if (type == "full"){
-    return(data.frame(method = c(rep("RF",nloops),rep("LASSO LR",nloops),rep("GBM ADA",nloops)),
-                      metric = c(lapply(rf_list, function(x) x %>% y) %>% unlist,
-                                 lapply(lr_list, function(x) x %>% y) %>% unlist,
-                                 lapply(gbm_list, function(x) x %>% y) %>% unlist)))
-  }
-  
-  if (type == "mean"){
-    return(data.frame(method = c("RF","LASSO LR","GBM ADA"),
-                      metric = c(lapply(rf_list, function(x) x %>% y) %>% unlist %>% mean(),
-                                 lapply(lr_list, function(x) x %>% y) %>% unlist %>% mean(),
-                                 lapply(gbm_list, function(x) x %>% y) %>% unlist %>% mean())))
-  }
-} 
-
-# Micro and macro F1 scores from https://www.datascienceblog.net/post/machine-learning/performance-measures-multi-class-problems/
-get.conf.stats <- function(cm) {
-  out <- vector("list", length(cm))
-  for (i in seq_along(cm)) {
-    x <- cm[[i]]
-    tp <- x$table[x$positive, x$positive] 
-    fp <- sum(x$table[x$positive, colnames(x$table) != x$positive])
-    fn <- sum(x$table[colnames(x$table) != x$positive, x$positive])
-    # TNs are not well-defined for one-vs-all approach
-    elem <- c(tp = tp, fp = fp, fn = fn)
-    out[[i]] <- elem
-  }
-  df <- do.call(rbind, out)
-  rownames(df) <- unlist(lapply(cm, function(x) x$positive))
-  return(as.data.frame(df))
-}
-
-get.micro.f1 <- function(cm) {
-  cm.summary <- get.conf.stats(cm)
-  tp <- sum(cm.summary$tp)
-  fn <- sum(cm.summary$fn)
-  fp <- sum(cm.summary$fp)
-  pr <- tp / (tp + fp)
-  re <- tp / (tp + fn)
-  f1 <- 2 * ((pr * re) / (pr + re))
-  return(f1)
-}
-
-get.macro.f1 <- function(cm) {
-  c <- cm[[1]]$byClass # a single matrix is sufficient
-  re <- sum(c[, "Recall"]) / nrow(c)
-  pr <- sum(c[, "Precision"]) / nrow(c)
-  f1 <- 2 * ((re * pr) / (re + pr))
-  return(f1)
-}
-
-# Convenience function for setting up data to plot species-labelled prediction figure
-rearrange_to_plot_fig_4_spp <- function(host) {
-  order <- valid_df_raw %>% 
-    filter(host_category == host) %>% 
-    group_by(childtaxa_name) %>% 
-    summarise(correct = mean(!!sym(host))) %>% 
-    arrange(-correct) %>% 
-    pull(childtaxa_name)
-  valid_df_raw %>% 
-    filter(host_category == host) %>% 
-    arrange(factor(childtaxa_name, levels = order), -!!sym(host)) %>%
-    return
-}
-
-# Apply models to predict host in complete start to finish approach from accession number(s)
-predict_host_from_accession <- function(accession, rf_list, use_spike) {
-  
-  Seq_FASTA(accession) %>% write(file = "data\\temp.fasta")
-  
-  seq <- readDNAStringSet("data\\temp.fasta")
-  
-  # Construct summary df for individual CDS
-  cds_df <- data.frame(
-    title = seq %>% names(),
-    accessionversion = seq %>% names() %>% str_match("lcl\\|(.*?)_cds_") %>% .[, 2] %>% as.character(),
-    gene = seq %>% names() %>% str_match("\\[gene=(.*?)\\]") %>% .[, 2],
-    protein = seq %>% names() %>% str_match("\\[protein=(.*?)\\]") %>% .[, 2],
-    length = seq %>% width()
-  )
-  
-  if(use_spike == FALSE & frameshift_correct == TRUE) {
-    
-    # Extract and append CDS location information by text extraction from title
-    cds_df %<>% cbind(cds_df %>%
-                        pull(title) %>%
-                        str_match("\\[location=(.*?)\\]") %>%
-                        .[, 2] %>%
-                        gsub("join\\(|\\)|>|<", "", .) %>%
-                        gsub(",", "..", .) %>%
-                        str_split(., "\\..") %>%
-                        lapply(., function(x) {
-                          x %>%
-                            t() %>%
-                            as.data.frame()
-                        }) %>%
-                        bind_rows() %>%
-                        mutate_all(., as.numeric) %>%
-                        rename_all(., ~ gsub("V", "loc_", .)))
-    
-    # Correct frameshift/slippage causing double accounting of elements of some ORF1ab CDS by specifying new location to start calculating metrics at
-    cds_df %<>% left_join(
-      cds_df %>% filter( # Only apply correction where needed
-        accessionversion %in% (cds_df %>% filter(grepl("join", title)) %>% pull(accessionversion))) %>% # Filter to sequences containing a CDS that join overlapping components
-        group_by(accessionversion, loc_1) %>% arrange(accessionversion, loc_1) %>% filter(n() > 1) %>% # Filter to sequences with two different CDS that both start at the same location
-        mutate(start_new = ifelse(is.na(loc_3), lag(loc_2) - (loc_1 - 1) + 1, 1)) %>% # For the shorter sequence of ORF1a, set new start location based on slippage location of ORF1b
-        ungroup() %>%
-        select(title, start_new),
-      by = "title"
-    ) %>%
-      replace_na(list(start_new = 1))
-    
-    cds_df %<>% mutate(nested_flag = ifelse(start_new >= length, "nested", NA))
-    
-    if ("nested" %in% cds_df$nested){
-      
-      # If ORF1a nested entirely within ORF1b, then just drop ORF1a
-      seq %<>% .[-which(cds_df$nested_flag == "nested")]
-      cds_df %<>% filter(is.na(nested_flag))
-      
-    }
-    
-    # Apply new CDS start locations
-    seq %<>% subseq(start = cds_df$start_new)
-    
-  }
-  
-  # Assign each cds as whole S, S1, S2 or other
-  cds_df %<>% mutate(seqtype = case_when(
-    grepl("^s1| s1|^s-1| s-1|subunit 1$|spike 1|spike protein 1|spike glycoprotein 1", protein, ignore.case = TRUE) ~ "S1",
-    grepl("^s2| s2|^s-2| s-2|subunit 2$|spike 2|spike protein 2|spike glycoprotein 2", protein, ignore.case = TRUE) ~ "S2",
-    grepl("spike|^surface|surface gly|s gly|s prot|peplom|protein S$|^S$", protein, ignore.case = TRUE) ~ "S"
-  )) %>% replace_na(list(seqtype = "other"))
-  
-  # Override with gene information where available
-  cds_df %<>% mutate(seqtype = case_when(
-    grepl("^s1| s1|^s-1| s-1|subunit 1$|spike 1|spike protein 1|spike glycoprotein 1", gene, ignore.case = TRUE) ~ "S1",
-    grepl("^s2| s2|^s-2| s-2|subunit 2$|spike 2|spike protein 2|spike glycoprotein 2", gene, ignore.case = TRUE) ~ "S2",
-    TRUE ~ seqtype
-  ))
-  
-  # Count nucs, dinucs, codons
-  df <- data.frame(accessionversion = cds_df$accessionversion,
-                   seqtype = cds_df$seqtype,
-                   enc = seq %>% codonTable() %>% ENC(stop.rm = FALSE), # Calculate Effective Number of Codons (including STOP codons)
-                   seq %>% letterFrequency("GC", as.prob = TRUE) * 100 %>% as.vector(), # Calculate % GC content
-                   seq %>% letterFrequency(c("A", "C", "G", "T")), # Nucleotide counts
-                   seq %>% dinucleotideFrequency(), # Dinucleotide counts
-                   seq %>%
-                     DNAStringSet(start = 1) %>%
-                     dinucleotideFrequency(step = 3) %>%
-                     as.data.frame() %>%
-                     rename_all(., ~ paste0(., "_p1")), # Dinucleotide counts between positions 1-2 only
-                   seq %>%
-                     DNAStringSet(start = 2) %>%
-                     dinucleotideFrequency(step = 3) %>%
-                     as.data.frame() %>%
-                     rename_all(., ~ paste0(., "_p2")), # Dinucleotide counts between positions 2-3 only
-                   seq %>%
-                     DNAStringSet(start = 3) %>%
-                     dinucleotideFrequency(step = 3) %>%
-                     as.data.frame() %>%
-                     rename_all(., ~ paste0(., "_p3")), # Dinucleotide counts between positions 3-1 only
-                   seq %>%
-                     codonTable() %>%
-                     codonCounts()) # Codon counts
-  
-  # If doing spike based predictions, select spike sequence, otherwise sum counts over whole genome
-  if (use_spike == TRUE){
-    df %<>% filter(seqtype == "S")
-  } else{
-    df %<>%
-      group_by(accessionversion) %>%
-      summarise_if(is.numeric, sum) %>%
-      mutate(GC_content = 100 * (G + C) / (A + C + G + T), CDS_length = A + G + C + T)
-  }
-  
-  # Calculate composition biases
-  df %<>% calc_composition_bias
-  
-  # Strip out any remaining sequences that have missing values that have slipped through (usually truncated sequences with no stop codon)
-  if (df %>% filter(!complete.cases(.)) %>% nrow > 0){
-    df %>% filter(!complete.cases(.)) %>% pull(accessionversion) %>% paste(collapse = ", ") %>% paste0("Removed accessions due to missing data: ", .) %>% print
-    df %<>% filter(complete.cases(.))
-  }
-  
-  # Produce rf predictions
-  output <- lapply(rf_list, function(model)
-    
-    data.frame(accessionversion = df$accessionversion, predict(model, newdata = df, type="prob"))
-    
-  ) %>% 
-    bind_rows %>%
-    group_by(accessionversion) %>%
-    summarise_if(is.numeric, mean)
-  
-  return(as.data.frame(output))
 }

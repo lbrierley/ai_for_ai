@@ -15,6 +15,7 @@ library(rentrez)
 library(patchwork)
 
 allflu_wgs_ref <- read.csv("S3\\data\\full\\allflu_wgs_ref.csv")
+cbbPalette_ordered <- c("#D55E00", "#E69F00", "#F0E442", "#009E73", "#56B4E9", "#0072B2", "#CC79A7", "#999999")
 
 #############
 # Data figs #
