@@ -13,7 +13,7 @@ library(stringr)
 # Setup #
 #########
 
-holdout_cluster_grid <- list.files(path = "S3\\data\\full\\holdout_clusters\\", pattern = "labels.csv") %>%
+holdout_cluster_grid <- list.files(path = "S3/data/full/holdout_clusters/", pattern = "labels.csv") %>%
   gsub("ex_|_labels.csv", "", .) %>%
   str_split(., "_") %>% 
   do.call(rbind.data.frame, .) %>%
@@ -23,9 +23,9 @@ cluster_set <- "70_7"
 
 fold_indices_list <- list()
 
-#############################################################
-# Extract training folds from previously run model and save #
-#############################################################
+#######################################################################
+# Extract training folds from single instance of previously run model #
+#######################################################################
 
 model_list <- list.files(path = "S3/analysis", pattern = ".rds", recursive = TRUE, full.names = TRUE) %>%
   .[grepl(cluster_set, .)] %>%
@@ -39,9 +39,9 @@ for(i in 1:length(unique(holdout_cluster_grid$subtype))){
   
 }
 
-# #############################################
-# # Generate training folds a priori and save #
-# #############################################
+# ####################################
+# # Generate training folds a priori #
+# ####################################
 # 
 # fold_fun <- function(subtype){
 # 
@@ -57,6 +57,10 @@ for(i in 1:length(unique(holdout_cluster_grid$subtype))){
 # }
 # 
 # fold_indices_list <- Map(f = fold_fun, subtype = unique(holdout_cluster_grid$subtype))
+
+##########
+# Export #
+##########
 
 names(fold_indices_list) <- unique(holdout_cluster_grid$subtype)
 fold_indices_list %>% saveRDS("S3/data/fold_indices_list.rds")

@@ -57,7 +57,7 @@ holdout_nz <- c("H4N6", "H16N3", "H4N8", "H8N4")
 
 stack_list <- holdouts %>% 
   purrr::map(function(x)
-    readRDS(paste0("stacks/stack_", x, ".rds")))
+    readRDS(paste0("stacks_weight/stack_", x, ".rds")))
 
 feats_list <- holdouts %>% 
   purrr::map(function(y)
@@ -95,7 +95,7 @@ varnames <- feats_list %>%
   select(-gid, -label, -subtype, -src) %>% 
   names
 
-stacked_coef <- read.csv("stack_coef.csv") %>%
+stacked_coef <- read.csv("stack_weight_coef.csv") %>%
   select(-X) %>%
   filter(param != "(Intercept)" & param != "lambda")  %>%
   separate_wider_delim(param, delim = "_", names = c("method", "feat_a", "feat_b", "gene")) %>%
@@ -181,7 +181,7 @@ AUC_base = roc(response = feats_list %>% bind_rows() %>% pull(label),
                quiet = TRUE)$auc %>% 
   as.numeric
 
-varimp_perm <- foreach (varname = varnames[40000:44204],
+varimp_perm <- foreach (varname = varnames[1:length(varnames)],
 .packages = c("caret","caretEnsemble","matrixStats","magrittr","pROC","dplyr","tidyr","purrr","stringr","tibble","kernlab","xgboost","ranger","glmnet"),
 .inorder = FALSE) %dopar% {
   
@@ -216,4 +216,4 @@ varimp_perm <- foreach (varname = varnames[40000:44204],
 
 stopCluster(cl)
 
-varimp_perm %>% bind_rows %>% write.csv("varimp_perm_pt5.csv")
+varimp_perm %>% bind_rows %>% write.csv("varimp_perm_weight_pt4.csv")
