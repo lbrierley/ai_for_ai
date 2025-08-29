@@ -1,6 +1,6 @@
-#######################
-# Load packages, data #
-#######################
+#################
+# Load packages #
+#################
 
 library(caret)
 library(magrittr)
@@ -19,14 +19,22 @@ library(glmnet)
 library(caretEnsemble)
 library(pROC)
 
-#########################################
-# Load required data and model pointers #
-#########################################
+###############
+# Set options #
+###############
 
-# Set parallelisation - to disable, comment out, and change %dopar% in line 72 to %do%
+# Only attempt to build stack models with positive discriminatory power (AUC > 0.5)?
+# This slightly cuts down computing time by pre-filtering some candidate models out.
+auc_filter <- TRUE
+
+# Set parallelisation - to disable, comment out, and change %dopar% in line 67 to %do%
 cl <- makePSOCKcluster(detectCores() - 1)
 registerDoParallel(cl)
 clusterSetRNGStream(cl, 1429)
+
+#######################
+# Load model pointers #
+#######################
 
 allflu_wgs_ref <- read.csv("S3\\data\\full\\allflu_wgs_ref.csv") %>%
   mutate(label = factor(case_when(label == "zoon" ~ "hzoon", label == "nz" ~ "nz"))) # Rearrange factor levels for better compatibility with model functions
@@ -43,20 +51,9 @@ holdouts <- unique(holdout_cluster_grid$subtype) %>% as.character
 holdout_zoon <- c("H7N9", "H5N1", "H9N2", "H5N6", "H10N8", "H7N3", "H3N8", "H7N7", "H7N4")
 holdout_nz <- c("H4N6", "H16N3", "H4N8", "H8N4")
 
-# Load in results of all individual models and resave as single file
-results_rf <- read.csv(paste0("S3\\analysis\\results_", "14_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "rf") 
-results_plr <- read.csv(paste0("S3\\analysis\\results_", "15_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "glmnet")
-results_xgb <- read.csv(paste0("S3\\analysis\\results_", "16_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "xgb")
-results_svmlin <- read.csv(paste0("S3\\analysis\\results_", "17_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "svmlin")
-results_svmrad <- read.csv(paste0("S3\\analysis\\results_", "18_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "svm")
-
-all_res <- bind_rows(results_rf,
-                     results_svmlin,
-                     results_svmrad,
-                     results_xgb,
-                     results_plr) 
-
-all_res %>% write.csv("S3\\analysis\\results_all_methods.csv")
+#########################################
+# Load required data and model pointers #
+#########################################
 
 # Define list of individual model files
 model_files <- list.files(path = "S3\\analysis\\", pattern = ".rds", recursive = TRUE, full.names = TRUE) %>%
@@ -85,13 +82,29 @@ result <- foreach (subtypepicked = holdouts,
                      
                      names(model_list) <- model_files %>% gsub(".*/|.rds|_list|_pt", "", .)
                      
-                     # Retain only models with positive discriminatory power (AUC > 0.5)
-                     all_res <- read.csv("S3\\analysis\\results_all_methods.csv", na.strings = "NaN") %>%
-                       mutate(modname = paste0(method, "_", featset, "_", focgene))
+                     if(auc_filter == TRUE){
+                       
+                       # Load in results of all individual models
+                       results_rf <- read.csv(paste0("S3\\analysis\\results_", "14_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "rf") 
+                       results_plr <- read.csv(paste0("S3\\analysis\\results_", "15_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "glmnet")
+                       results_xgb <- read.csv(paste0("S3\\analysis\\results_", "16_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "xgb")
+                       results_svmlin <- read.csv(paste0("S3\\analysis\\results_", "17_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "svmlin")
+                       results_svmrad <- read.csv(paste0("S3\\analysis\\results_", "18_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "svm")
+                       
+                       all_res <- bind_rows(results_rf,
+                                            results_svmlin,
+                                            results_svmrad,
+                                            results_xgb,
+                                            results_plr) %>%
+                         mutate(modname = paste0(method, "_", featset, "_", focgene))
+                       
+                       
+                       # Filter model list to positive discriminatory models
+                       model_list <- model_list[names(model_list) %in% (all_res %>% filter(AUC > 0.5) %>% pull(modname))]
+                       
+                     }
                      
-                     model_list <- model_list[names(model_list) %in% (all_res %>% filter(AUC > 0.5) %>% pull(modname))]
-                     
-                     # Retain only best models for each protein * feature set combination (i.e., eliminating dimension of method)
+                     # Filter to only best models for each protein * feature set combination (i.e., eliminating dimension of method)
                      model_list <- model_list[names(model_list) %in% (all_res %>% group_by(featset, focgene) %>% slice_max(AUC) %>% pull(modname))]
                      
                      # Fit initial model and extract coefficients
@@ -127,7 +140,7 @@ result <- foreach (subtypepicked = holdouts,
                      
                      rm(temp_stack)
                      
-                     # Refit models keeping only non-zero parameters
+                     # Refit stack models filtering to only individual models that have non-zero parameters (i.e., remove models not selected for the stack). This makes the overall stack object smaller and more manageable for permutation variable importance.
                      model_list <- model_list[names(model_list) %in% keep_coefs]
                      
                      set.seed(1146)
@@ -152,7 +165,7 @@ result <- foreach (subtypepicked = holdouts,
                      )
                      
                      # Read in EVERY feature set of EVERY protein for test set subtype (53184 features)
-                     allfeats <- purrr::map(list.files(path = "mlready", full.names = TRUE), 
+                     allfeats <- purrr::map(list.files(path = "S3\\data\\full\\mlready", full.names = TRUE), 
                                             function (x) 
                                               readRDS(x) %>%
                                               select(-any_of(c("segment", "cds_id", "enc", "GC_content"))) %>%
@@ -173,6 +186,7 @@ result <- foreach (subtypepicked = holdouts,
                                    arrange(gid),
                                  .)
                      
+                     # Generate predictions on test set subtype
                      element <- list(main = data.frame(hzoon = predict(plr_stack, newdata=allfeats, type = "prob"), 
                                                        label = allfeats$label,
                                                        subtype = subtypepicked),
@@ -184,6 +198,7 @@ result <- foreach (subtypepicked = holdouts,
                                        bind_rows(data.frame(s1 = plr_stack$ens_model$finalModel$lambdaOpt, param = "lambda")) %>%
                                        mutate(subtype = subtypepicked))
                      
+                     # Save the stack for this test set subtype
                      saveRDS(plr_stack, file=paste0("S3\\analysis\\stacks_weight\\stack_", subtypepicked, ".rds"))
                      rm(model_list, plr_stack, allfeats)
                      gc()

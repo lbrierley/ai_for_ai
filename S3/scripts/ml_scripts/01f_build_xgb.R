@@ -1,3 +1,5 @@
+## Note XGBoost requires significant computing power, and with limited GPU access you may need to run as separate jobs one protein at a time.
+
 #######################
 # Load packages, data #
 #######################

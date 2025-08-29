@@ -29,8 +29,7 @@ S3/scripts/old
 S3/analysis/subtyperaw_backup
 S3/analysis/stacks_backup
 S3/scripts/mmseqs-win64
-S3/scripts/process_YX_data_LB_17_1_23.R
-S3/scripts/extract_GenBank_flu.R
+S3/scripts/expl_scripts
 S3/figures_tables/ext
 S3/figures_tables/pre_cluster
 S3/drafts

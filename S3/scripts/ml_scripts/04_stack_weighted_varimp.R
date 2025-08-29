@@ -1,11 +1,12 @@
-#######################
-# Load packages, data #
-#######################
+## Note final stack models often contain >40,000 individual features, and with limited GPU access you may need to run as separate jobs splitting features into batches
+
+#################
+# Load packages #
+#################
 
 library(caret)
 library(magrittr)
 library(dplyr)
-library(tidyr)
 library(stringr)
 library(parallel)
 library(doParallel)
@@ -21,7 +22,7 @@ library(pROC)
 # Number of permutations
 n_perms <- 1
 
-## Set parallelisation
+## Set parallelisation - to disable, comment out, and change %dopar% in line 182 to %do%
 cl <- makePSOCKcluster(6)
 registerDoParallel(cl)
 clusterSetRNGStream(cl, 1429)
@@ -30,22 +31,14 @@ clusterSetRNGStream(cl, 1429)
 # Load model pointers #
 #######################
 
-allflu_wgs_ref <- read.csv("allflu_wgs_ref.csv") %>%
+allflu_wgs_ref <- read.csv("S3\\data\\full\\allflu_wgs_ref.csv") %>%
   mutate(label = factor(case_when(label == "zoon" ~ "hzoon", label == "nz" ~ "nz"))) # Rearrange factor levels for better compatibility with model functions
 
-holdout_cluster_grid <- list.files(path = "holdout_clusters/", pattern = "labels.csv") %>%
+holdout_cluster_grid <- list.files(path = "S3\\data\\full\\holdout_clusters", pattern = "labels.csv") %>%
   gsub("ex_|_labels.csv", "", .) %>%
   str_split(., "_") %>% 
   do.call(rbind.data.frame, .) %>%
   magrittr::set_colnames(c("subtype", "minseqid", "C"))
-
-# cluster_sets <- holdout_cluster_grid %>% 
-#   select(minseqid, C) %>% 
-#   distinct %>% 
-#   mutate(cluster_set = paste0(minseqid, "_", C)) %>% 
-#   pull(cluster_set)
-
-cluster_sets <- "70_7"
 
 holdouts <- unique(holdout_cluster_grid$subtype) %>% as.character
 holdout_zoon <- c("H7N9", "H5N1", "H9N2", "H5N6", "H10N8", "H7N3", "H3N8", "H7N7", "H7N4")
@@ -57,11 +50,11 @@ holdout_nz <- c("H4N6", "H16N3", "H4N8", "H8N4")
 
 stack_list <- holdouts %>% 
   purrr::map(function(x)
-    readRDS(paste0("stacks_weight/stack_", x, ".rds")))
+    readRDS(paste0("S3\\analysis\\stacks_weight\\stack_", x, ".rds")))
 
 feats_list <- holdouts %>% 
   purrr::map(function(y)
-    purrr::map(list.files(path = "mlready", full.names = TRUE), 
+    purrr::map(list.files(path = "S3\\data\\full\\mlready", full.names = TRUE), 
                function(x) 
                  readRDS(x) %>%
                  select(-any_of(c("segment", "cds_id", "enc", "GC_content"))) %>%
@@ -89,13 +82,14 @@ feats_list <- holdouts %>%
 
 set.seed(1717)
 
-# Restrict variables to only those used in models
 varnames <- feats_list %>% 
   bind_rows %>% 
   select(-gid, -label, -subtype, -src) %>% 
   names
 
-stacked_coef <- read.csv("stack_weight_coef.csv") %>%
+# Read in coefficients on each individual model from the stack models
+
+stacked_coef <- read.csv("S3\\analysis\\stack_weight_coef.csv") %>%
   select(-X) %>%
   filter(param != "(Intercept)" & param != "lambda")  %>%
   separate_wider_delim(param, delim = "_", names = c("method", "feat_a", "feat_b", "gene")) %>%
@@ -104,7 +98,7 @@ stacked_coef <- read.csv("stack_weight_coef.csv") %>%
   distinct() %>% 
   arrange(featset, gene)
 
-# Filter out feature names sequentially based on retained models
+# Sequentially filter list of features to only those present in individual models chosen to make up the stacks
 
 for (focgene in  c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")){
   
@@ -159,14 +153,12 @@ for (focgene in  c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")){
   }
 }
 
+# Prepare repeated permutations if selected
+
 varnames <- rep(varnames, 
                 each = n_perms)
 
-# feats_list %<>% lapply(function(x)
-#   x %>% select(gid, subtype, label, src, any_of(varnames)) # Drop unused features
-# )
-
-# Apply stack to make predictions
+# Apply stack to make predictions before permutation
 
 predict_prob_test <- Map(function(model, newdata)
   data.frame(hzoon = predict(model, newdata=newdata, type = "prob"), 
@@ -175,11 +167,15 @@ predict_prob_test <- Map(function(model, newdata)
   newdata = feats_list
 ) %>% bind_rows
 
+# Calculate starting AUC before permutation
+
 AUC_base = roc(response = feats_list %>% bind_rows() %>% pull(label),
                predictor = predict_prob_test %>% pull(hzoon),
                direction = ">",
                quiet = TRUE)$auc %>% 
   as.numeric
+
+# Conduct feature-wise permutations (this can be changed to a specific batch by replacing the subsetting of varnames in the foreach startup below)
 
 varimp_perm <- foreach (varname = varnames[1:length(varnames)],
 .packages = c("caret","caretEnsemble","matrixStats","magrittr","pROC","dplyr","tidyr","purrr","stringr","tibble","kernlab","xgboost","ranger","glmnet"),
@@ -209,11 +205,13 @@ varimp_perm <- foreach (varname = varnames[1:length(varnames)],
  
   print(end - start)
  
-  return(data.frame(var = varname, AUC_loss = AUC_base - AUC_perm))
+  return(data.frame(var = varname, AUC_loss = AUC_base - AUC_perm)) # calculate AUC loss from permuting specific feature
   
 }
 
 
 stopCluster(cl)
 
-varimp_perm %>% bind_rows %>% write.csv("varimp_perm_weight_pt4.csv")
+# Save permutations
+
+varimp_perm %>% bind_rows %>% write.csv("S3//analysis//varimp_perm_weight.csv")

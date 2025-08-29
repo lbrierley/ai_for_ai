@@ -2,9 +2,9 @@
 # Overall figures across all model algorithms #
 ###############################################
 
-################################
-# Load packages, reference IDs #
-################################
+#################
+# Load packages #
+#################
 
 library(dplyr)
 library(tidyr)
@@ -14,14 +14,22 @@ library(ggrepel)
 library(rentrez)
 library(patchwork)
 
+############################
+# Load IDs and set options #
+############################
+
 allflu_wgs_ref <- read.csv("S3\\data\\full\\allflu_wgs_ref.csv")
+
 cbbPalette_ordered <- c("#D55E00", "#E69F00", "#F0E442", "#009E73", "#56B4E9", "#0072B2", "#CC79A7", "#999999")
 
-#############
-# Data figs #
-#############
+cluster_chosen <- "70_7"
+
+################
+# Data figures #
+################
 
 # Supplementary Fig S1
+# Sequence representation over time
 
 S1 <- allflu_wgs_ref %>%
   mutate(label = case_when(
@@ -42,17 +50,17 @@ S1 <- allflu_wgs_ref %>%
 
 ggsave("S3\\figures_tables\\time_dist_wgs.png", plot = S1, width = 14, height = 6)
 
-#############################################
-# Performance figs on individual algorithms #
-#############################################
+##########################################
+# Performance figures: individual models #
+##########################################
 
 # Performance metrics on holdout sets
 
-results_rf <- read.csv(paste0("S3\\analysis\\results_", "14_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "rf") 
-results_plr <- read.csv(paste0("S3\\analysis\\results_", "15_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "glmnet")
-results_xgb <- read.csv(paste0("S3\\analysis\\results_", "16_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "xgb")
-results_svmlin <- read.csv(paste0("S3\\analysis\\results_", "17_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "svmlin")
-results_svmrad <- read.csv(paste0("S3\\analysis\\results_", "18_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == "70_7") %>% mutate(method = "svm")
+results_rf <- read.csv(paste0("S3\\analysis\\results_", "14_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == cluster_chosen) %>% mutate(method = "rf") 
+results_plr <- read.csv(paste0("S3\\analysis\\results_", "15_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == cluster_chosen) %>% mutate(method = "glmnet")
+results_xgb <- read.csv(paste0("S3\\analysis\\results_", "16_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == cluster_chosen) %>% mutate(method = "xgb")
+results_svmlin <- read.csv(paste0("S3\\analysis\\results_", "17_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == cluster_chosen) %>% mutate(method = "svmlin")
+results_svmrad <- read.csv(paste0("S3\\analysis\\results_", "18_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == cluster_chosen) %>% mutate(method = "svm")
 
 all_res <- bind_rows(results_rf,
                      results_svmlin,
@@ -60,7 +68,11 @@ all_res <- bind_rows(results_rf,
                      results_xgb,
                      results_plr) 
 
-#all_res %>% write.csv("S3\\analysis\\results_all_methods.csv")
+# Save for reference
+all_res %>% write.csv("S3\\analysis\\results_all_methods.csv")
+
+# Fig 2
+# AUC heatmap of best model methods
 
 fig_results_heat_AUC_70_7 <- all_res %>%
   group_by(method, featset, focgene) %>%
@@ -95,15 +107,15 @@ fig_results_heat_AUC_70_7 <- all_res %>%
   ggplot(aes(x = focgene, y = factor(featset, levels = rev(levels(featset))), fill = value)) + 
   geom_tile(color="white") +
   scale_fill_distiller("AUROC", palette = "RdBu", limits = c(0,1)) +
-  #  scale_fill_viridis_c("AUC") +
   facet_wrap(~ method, nrow=1) +
   theme_bw() +
-  # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),      # poster colours
-  #       legend.key = element_rect(fill = "#F2F6F9", color = "#F2F6F9")) +
   xlab("Influenza virus gene/protein") +
   ylab("Feature set")
 
 ggsave("S3\\figures_tables\\all_results_heat_AUC_70_7.png", plot = fig_results_heat_AUC_70_7, width = 15, height = 3)
+
+# Supplementary Fig 2
+# AUC heatmap of all model methods
 
 fig_results_heat_AUC_70_7_one <- all_res %>%
   group_by(method, featset, focgene) %>%
@@ -143,16 +155,14 @@ fig_results_heat_AUC_70_7_one <- all_res %>%
   geom_point(aes(pch = method), color = "black", size = 2) +
   scale_fill_distiller("AUROC", palette = "RdBu", limits = c(0,1)) +
   scale_shape_manual("algorithm", values = c(19, 15, 17, 18, 8)) + 
-  #  scale_fill_viridis_c("AUC") +
   theme_bw() +
-  # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),      # poster colours
-  #       legend.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
-  #       axis.title.x = element_text(size=10),
-  #       axis.title.y = element_text(size=10)) +
   xlab("Influenza virus gene/protein") +
   ylab("Feature set")
 
 ggsave("S3\\figures_tables\\all_results_heat_AUC_70_7_one.png", plot = fig_results_heat_AUC_70_7_one, width = 6, height = 3.5)
+
+# Supplementary Fig 3
+# F1 heatmap of all model methods
 
 fig_results_heat_F1_70_7 <- all_res %>%
   group_by(method, featset, focgene) %>%
@@ -196,70 +206,24 @@ fig_results_heat_F1_70_7 <- all_res %>%
 
 ggsave("S3\\figures_tables\\all_results_heat_F1_70_7.png", plot = fig_results_heat_F1_70_7, width = 15, height = 3)
 
-# fig_results_heat_Sensitivity_70_7 <- all_res %>%
-#   group_by(method, featset, focgene) %>%
-#   summarise(Sensitivity = mean(Sensitivity)) %>%
-#   ungroup %>%
-#   mutate(featset = case_when(
-#     featset == "cds_compbias" ~ "nuc: composition",
-#     featset == "nuc_2mer" ~ "nuc: 2-mers",
-#     featset == "nuc_3mer" ~ "nuc: 3-mers",
-#     featset == "nuc_4mer" ~ "nuc: 4-mers",
-#     featset == "nuc_5mer" ~ "nuc: 5-mers",
-#     featset == "nuc_6mer" ~ "nuc: 6-mers",
-#     featset == "prot_2mer" ~ "prot: 2-mers",
-#     featset == "prot_ctdc" ~ "prot: CTD-C",
-#     featset == "prot_ctdt" ~ "prot: CTD-T",
-#     featset == "prot_ctdd" ~ "prot: CTD-D",
-#     featset == "prot_ctriad" ~ "prot: CTriad",
-#     featset == "prot_pseaac" ~ "prot: PseAAC"),
-#     featset = as.factor(featset),
-#     method = case_when(
-#       method == "glmnet" ~ "PLR",
-#       method == "rf" ~ "RF",
-#       method == "svm" ~ "RSVM",
-#       method == "svmlin" ~ "SVM",
-#       method == "xgb" ~ "XGB",
-#     ),
-#     focgene = factor(focgene, levels = c("PB2", "PB1", "PA", "HA", "NP", "NA", "M1", "NS1"))
-#   ) %>%
-#   gather(metric, value, -method, -featset, -focgene) %>%
-#   filter(metric %in% c("F1")) %>%
-#   mutate(value = as.numeric(value)) %>%
-#   ggplot(aes(x = focgene, y = factor(featset, levels = rev(levels(featset))), fill = value)) +
-#   geom_tile(color="white") +
-#   scale_fill_viridis_c("F1") +
-#   facet_wrap(~ method, nrow=1) +
-#   theme_bw() +
-#   # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
-#   #       legend.key = element_rect(fill = "#F2F6F9", color = "#F2F6F9")) +
-#   xlab("Influenza virus gene/protein") +
-#   ylab("Feature set")
-# 
-# ggsave("S3\\figures_tables\\all_results_heat_Sensitivity_70_7.png", plot = fig_results_heat_Sensitivity_70_7, width = 15, height = 3)
+#######################################
+# Performance figures: stacked models #
+#######################################
 
-
-######################################
-# Performance figs on stacked models #
-######################################
-
-# What models are being selected?
+# Read in stacked model coefficients (on individual models)
 
 stacked_coef <- read.csv("S3/analysis/stack_weight_coef.csv") %>%
   select(-X) %>%
   filter(param != "(Intercept)" & param != "lambda")
 
-# By count of retention
+# Arrange individual models by count of retention
 
 mod_count <- stacked_coef %>%
   group_by(param) %>%
   tally() %>%
   arrange(-n) 
 
-mod_count %>% 
-  dplyr::slice(1:20)
-
-# By magnitude (could be considered variable importance)
+# Arrange individual models by coefficient magnitude
 
 mod_mag <- stacked_coef %>% 
   tidyr::expand(param, subtype) %>% 
@@ -269,19 +233,14 @@ mod_mag <- stacked_coef %>%
   summarise_at(vars("s1"), list(mean = mean)) %>%
   arrange(-abs(mean))
 
-mod_mag %>% 
-  dplyr::slice(1:20)
-
-mod_mag %>% left_join(mod_count) %>% dplyr::slice(1:20)
-
-# Save both
+# Save as a table
 
 mod_mag %>% left_join(mod_count) %>%
   separate_wider_delim(param, delim = "_", names = c("method", "feattype", "feat", "focgene")) %>%
   write.csv("S3/analysis/stack_weight_coef_table.csv")
 
 
-# Predictions for all test set sequences
+# Load predictions for all test set sequences
 
 stacked_raw <- read.csv("S3/analysis/stack_weight_subtypeacc_raw.csv") %>%
   bind_cols(allflu_wgs_ref %>% filter((subtype %in% holdout_zoon & label == "zoon")|(subtype %in% holdout_nz)) %>% arrange(subtype) %>% select(-X, -label, -subtype)) %>%
@@ -293,116 +252,16 @@ stacked_raw <- read.csv("S3/analysis/stack_weight_subtypeacc_raw.csv") %>%
                              TRUE ~ subtype),
          subtype = factor(subtype, levels = c("H4N6", "H4N8", "H8N4", "H16N3", "H5N1", "H5N6", "H7N9", "H9N2", "rare subtypes (< 10)")))
 
-# All avian sequences above threshold for zoonotic prediction
+# List all avian test set sequences that were above threshold for zoonotic prediction
 
 zoon_risk <- stacked_raw %>% 
   filter(label == "nz" & pred == "hzoon") %>% 
   arrange(-hzoon) %>%
   as.data.frame
 
-# Search GenBank sequences for location
 
-# metadata_extraction <- lapply(zoon_risk$title, function(x){
-#   g <- tryCatch(entrez_search(db = "nuccore", term = x, retmax = 10000)$ids[1] %>%
-#                   entrez_summary(db = "nuccore") %>% 
-#                   purrr::flatten() %>%
-#                   .$subname,
-#                 error=function(e) NULL)
-#   Sys.sleep(5)
-#   return(g)
-# }
-# )
-
-#### MANUALLY RESOLVE PIECES FOR NOW BUT IN FUTURE ALSO PULL $subtype AND USE TO DYNAMICALLY ASSIGN COLUMNS TO METADATA
-metadata_data <- data.frame(metadata_data = unlist(metadata_extraction)) %>%
-  mutate(metadata_data = gsub("CEIRS#.*#\\|","",metadata_data)) %>%
-  separate_wider_delim(metadata_data, delim = "|", 
-                       too_few = "debug",
-                       too_many = "debug",
-                       names = stringr::str_split_1("strain|serotype|host|lab_host|country|segment|collection_date", pattern = "\\|"))
-
-# TIDY THIS UP LATER - ASSIGNS ABOUT 80% RIGHT BUT STILL NEEDS MANUAL FIXING FOR REMAINING 20%
-# USING COPYPASTE AND ALT + : TO ONLY SELECT THOSE IN FILTER ETC
-extract_last_capital_segment <- function(input_string) {
-  segments <- strsplit(input_string, "\\|")[[1]]
-  capital_segments <- segments[grepl("^[A-Z]", segments)]
-  if (length(capital_segments) > 0) {
-    return(tail(capital_segments, 1))
-  } else {
-    return(NA)  # or "" if you prefer
-  }
-}
-
-metadata_countries <- data.frame(metadata_data = unlist(metadata_extraction)) %>%
-  rowwise %>%
-  mutate(metadata_data = extract_last_capital_segment(metadata_data)) %>%
-  rename(clean_country = metadata_data)
-
-# bind_cols(metadata_data, metadata_countries) %>% write.csv("S3\\data\\full\\metadata_risk_preds_nz.csv")
-
-metadata_clean <- read.csv("S3\\data\\full\\metadata_risk_preds_nz.csv")
-
-zoon_risk %>% 
-  left_join(metadata_clean %>% mutate(strain = gsub(" ", "_", strain)),
-            by = c("title" = "strain")) %>%
-  rename(p_zoon = hzoon, prediction = pred) %>%
-  select(p_zoon, label, subtype, prediction,	title, src,	date,	clean_country) %>%
-  rename(country = clean_country) %>%
-  distinct() %>%
-  write.csv("S3\\data\\full\\zoon_risk_preds_nz.csv") 
-
-# Plot
-
-fig_results_stack_raw <- stacked_raw %>% 
-  ggplot(aes(x = subtype, y = log(hzoon), colour = label, size = orig_subtype, pch = orig_subtype)) +
-  geom_jitter(alpha = 0.4, position = position_jitter(width = 0.2, seed = 1649)) +
-  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_weight_results.csv") %>% pull(threshold) %>% log), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
-  scale_shape_manual("subtype", 
-                     values = c("H10N8" = 12, 
-                                "H16N3" = 19, 
-                                "H3N8" = 15, 
-                                "H4N6" = 19,
-                                "H4N8" = 19,
-                                "H5N1" = 19, 
-                                "H5N6" = 19,
-                                "H7N3" = 17, 
-                                "H7N4" = 8, 
-                                "H7N7" = 4, 
-                                "H7N9" = 19, 
-                                "H8N4" = 19, 
-                                "H9N2" = 19),
-                     breaks = c("H10N8", "H3N8", "H7N3", "H7N4", "H7N7")) + 
-  scale_size_manual("subtype", 
-                    values = c("H10N8" = 2.5, 
-                               "H16N3" = 1.5, 
-                               "H3N8" = 2.5, 
-                               "H4N6" = 1.5,
-                               "H4N8" = 1.5,
-                               "H5N1" = 1.5, 
-                               "H5N6" = 1.5,
-                               "H7N3" = 2.5, 
-                               "H7N4" = 2.5, 
-                               "H7N7" = 2.5, 
-                               "H7N9" = 1.5, 
-                               "H8N4" = 1.5, 
-                               "H9N2" = 1.5),
-                    breaks = c("H10N8", "H3N8", "H7N3", "H7N4", "H7N7")) + 
-  theme_bw() +
-  guides(colour = "none") +
-  theme(legend.title=element_blank(),
-        legend.margin=margin(t = 0, unit='cm'),
-        legend.position = "inside",
-        legend.position.inside = c(.93,.27),
-        legend.key.size = unit(0.4, 'cm')) +
-  # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),      # poster colours
-  #       legend.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
-  #       axis.title.x = element_text(size=10),
-  #       axis.title.y = element_text(size=10)) +
-  ylab("log(p(zoonotic))") +
-  xlab("Subtype") +
-  guides(color = "none")
-
-ggsave(paste0("S3\\figures_tables\\fig_results_stack_weight_raw.png"), plot = fig_results_stack_raw, width = 10, height = 5.5)
+# Fig 3
+# Plot all test set sequence predictions
 
 fig_results_stack_raw_p01 <- stacked_raw %>% 
   ggplot(aes(x = subtype, y = hzoon, colour = label, size = orig_subtype, pch = orig_subtype)) +
@@ -445,21 +304,68 @@ fig_results_stack_raw_p01 <- stacked_raw %>%
         legend.position = "inside",
         legend.position.inside = c(.93,.87),
         legend.key.size = unit(0.4, 'cm')) +
-  # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),      # poster colours
-  #       legend.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
-  #       axis.title.x = element_text(size=10),
-  #       axis.title.y = element_text(size=10)) +
   ylab("p(zoonotic)") +
   xlab("Subtype") +
   guides(color = "none")
 
 ggsave(paste0("S3\\figures_tables\\fig_results_stack_weight_raw_p01.png"), plot = fig_results_stack_raw_p01, width = 10, height = 5.5)
-# 
-# ggsave(paste0("S3\\figures_tables\\fig_results_stack_weight_raw_p01_poster.png"), plot = fig_results_stack_raw_p01, width = 10, height = 2)
 
-#######################################################
-# Permutation variable importance from stacked models #
-#######################################################
+
+# Log-scaled version of Fig 3
+
+fig_results_stack_raw <- stacked_raw %>% 
+  ggplot(aes(x = subtype, y = log(hzoon), colour = label, size = orig_subtype, pch = orig_subtype)) +
+  geom_jitter(alpha = 0.4, position = position_jitter(width = 0.2, seed = 1649)) +
+  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_weight_results.csv") %>% pull(threshold) %>% log), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
+  scale_shape_manual("subtype", 
+                     values = c("H10N8" = 12, 
+                                "H16N3" = 19, 
+                                "H3N8" = 15, 
+                                "H4N6" = 19,
+                                "H4N8" = 19,
+                                "H5N1" = 19, 
+                                "H5N6" = 19,
+                                "H7N3" = 17, 
+                                "H7N4" = 8, 
+                                "H7N7" = 4, 
+                                "H7N9" = 19, 
+                                "H8N4" = 19, 
+                                "H9N2" = 19),
+                     breaks = c("H10N8", "H3N8", "H7N3", "H7N4", "H7N7")) + 
+  scale_size_manual("subtype", 
+                    values = c("H10N8" = 2.5, 
+                               "H16N3" = 1.5, 
+                               "H3N8" = 2.5, 
+                               "H4N6" = 1.5,
+                               "H4N8" = 1.5,
+                               "H5N1" = 1.5, 
+                               "H5N6" = 1.5,
+                               "H7N3" = 2.5, 
+                               "H7N4" = 2.5, 
+                               "H7N7" = 2.5, 
+                               "H7N9" = 1.5, 
+                               "H8N4" = 1.5, 
+                               "H9N2" = 1.5),
+                    breaks = c("H10N8", "H3N8", "H7N3", "H7N4", "H7N7")) + 
+  theme_bw() +
+  guides(colour = "none") +
+  theme(legend.title=element_blank(),
+        legend.margin=margin(t = 0, unit='cm'),
+        legend.position = "inside",
+        legend.position.inside = c(.93,.27),
+        legend.key.size = unit(0.4, 'cm')) +
+  ylab("log(p(zoonotic))") +
+  xlab("Subtype") +
+  guides(color = "none")
+
+ggsave(paste0("S3\\figures_tables\\fig_results_stack_weight_raw.png"), plot = fig_results_stack_raw, width = 10, height = 5.5)
+
+
+###########################################
+# Permutation variable importance figures #
+###########################################
+
+# Read through all permutation variable importance csv files in case they were batch-processed
 
 varimp <- list.files(path = "S3\\analysis\\", pattern = "varimp_perm", full.names = TRUE) %>%
   purrr::map_dfr(read.csv) %>%
@@ -479,34 +385,10 @@ varimp <- list.files(path = "S3\\analysis\\", pattern = "varimp_perm", full.name
     grepl("^PAAC", feat) ~ "prot: PseAAC",
     grepl("^CTriad", feat) ~ "prot: CTriad")
   )
-varimp %>% arrange(-AUC_loss) %>% select(-var)
 
-varimp %>% group_by(focgene) %>% summarise(mean = mean(AUC_loss)) %>% arrange(-mean)
-varimp %>% group_by(feat) %>% summarise(mean = mean(AUC_loss)) %>% arrange(-mean)
+# Fig 4
+# Permutation variable importance boxplots
 
-varimp %>%
-  filter(AUC_loss > 0) %>%
-  ggplot(aes(x = focgene, y = AUC_loss)) +
-  geom_boxplot(alpha = 0.9) +
-  scale_y_log10() +
-  theme_bw()
-
-##  Point plot
-# varimp %>% 
-#   filter(AUC_loss > 0) %>%
-#   ggplot(aes(x = focgene, y = AUC_loss, fill = featset)) +
-#   geom_jitter(alpha = 0.7, shape = 21, size = 3.5, position = position_jitter(width = 0.4, seed = 1615)) +
-#   theme_bw() +
-#   scale_fill_manual(values =   c("#E69F00", "#F0E442", "#B2DF8A","#56B4E9","#CC79A7", "#33A02C", "#0072B2", "#D55E00","#6A3D9A", "#EEEEEE", "#666666", "#000000")) +
-#   # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),      # poster colours
-#   #       legend.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
-#   #       axis.title.x = element_text(size=10),
-#   #       axis.title.y = element_text(size=10)) +
-#   scale_y_log10() +
-#   ylab("AUROC loss") +
-#   xlab("Influenza virus gene/protein")
-
-# Ordered plot
 fig_varimp_ordered <- varimp %>% 
   filter(AUC_loss > 0) %>%
   mutate(label = paste0(focgene, ", ", featset),
@@ -515,10 +397,6 @@ fig_varimp_ordered <- varimp %>%
   geom_boxplot(alpha = 0.9) +
   theme_bw() +
   scale_fill_manual(values = cbbPalette_ordered) +
-  # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),      # poster colours
-  #       legend.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
-  #       axis.title.x = element_text(size=10),
-  #       axis.title.y = element_text(size=10)) +
   scale_y_log10() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         legend.title=element_blank()) +
@@ -527,11 +405,8 @@ fig_varimp_ordered <- varimp %>%
 
 ggsave("S3\\figures_tables\\permut_varimp_ordered.png", plot = fig_varimp_ordered, width = 14, height = 5)
 
-##############################
-# Model interrogation figure #
-##############################
 
-# Plot models retained in at least 5 stacks
+# Identify individual models that contributed to at least five holdout subtype stack models
 pmc_df <- mod_count %>%
   separate_wider_delim(param, delim = "_", names = c("method", "feattype", "feat", "focgene"), cols_remove = FALSE) %>%
   mutate(focgene = as.factor(focgene)) %>%
@@ -558,6 +433,9 @@ pmc_df <- mod_count %>%
          label = gsub("prot_pseaac", "prot: PseAAC", label)) %>%
   mutate(param = forcats::fct_reorder(param, n, .desc = FALSE))
 
+
+# Supp Fig 4
+# Bar counts of holdout subtype stack models each individual model contributed to
 fig_modcount <- pmc_df %>%
   ggplot(aes(x = param, 
              y = n, 
@@ -567,100 +445,30 @@ fig_modcount <- pmc_df %>%
   scale_fill_manual(values = cbbPalette_ordered, drop = FALSE) +
   scale_x_discrete(labels=pmc_df$label) +
   scale_y_continuous(expand = c(0, 0.1), breaks = c(0:11)) +
-  # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),      # poster colours
-  #       legend.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
-  #       axis.title.x = element_text(size=10),
-  #       axis.title.y = element_text(size=10)) +
   ylab("N stacks") +
   xlab("Machine learning model") +
   coord_flip() +
   theme(legend.title=element_blank()) +
   guides(fill = guide_legend(nrow=1))
 
-# Plot spread of variable importances for each individual feature
+# Permutation variable importance boxplots grouped by feature set
 fig_varimp <- varimp %>% 
   filter(AUC_loss > 0) %>%
   ggplot(aes(x = focgene, y = AUC_loss, fill = focgene)) +
   geom_boxplot(alpha = 0.9) +
   theme_bw() +
   scale_fill_manual(values = cbbPalette_ordered) +
-  # theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),      # poster colours
-  #       legend.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
-  #       axis.title.x = element_text(size=10),
-  #       axis.title.y = element_text(size=10)) +
   scale_y_log10() +
   ylab("AUROC loss") +
   xlab("Influenza virus gene/protein") +
   facet_wrap(~ featset, nrow=4) +
   guides(fill = "none")
 
+# Combine into multipanel
+
 fig_varimp_combi <- fig_modcount + fig_varimp +
   plot_annotation(tag_levels = 'A') +
   plot_layout(widths = c(1,3), guides = 'collect') &
   theme(legend.position = "bottom")
 
-
 ggsave("S3\\figures_tables\\model_count_permut_varimp.png", plot = fig_varimp_combi, width = 12, height = 6.5)
-
-#####################################
-# Performance figs on external data #
-#####################################
-
-# Predictions for external sequence sets - H5N1 2.3.4.4b cattle outbreak
-
-pred_dairy <- read.csv("S3\\data\\ext\\preds_weight_dairyc_raw.csv")
-pred_misc <- read.csv("S3\\data\\ext\\preds_weight_misc_raw.csv") %>% filter(gid %in% c("EPI_ISL_19162802", "EPI_ISL_19027114"))
-
-fig_results_dairyc <- bind_rows(pred_dairy, pred_misc) %>%
-  filter(stack == "H5N1") %>%                                                     # ONLY USE THE H5N1 STACK
-  filter(as.Date(date) > "2024-01-01") %>%
-  ggplot(aes(x = as.Date(date), y = log(hzoon), colour = set)) +
-  geom_point(alpha = 0.8) +
-  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_weight_results.csv") %>% pull(threshold) %>% log()), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
-  scale_color_manual(values = c("#C77CFF", "#F8766D")) +
-  #  scale_y_continuous(limits = c(-5, -3)) +
-  theme_bw() +
-  theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),      # poster colours
-        legend.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
-        axis.title.x = element_text(size=10),
-        axis.title.y = element_text(size=10)) +
-  ylab("log(p(zoonotic))") +
-  xlab("Month") +
-  guides(color = "none")
-
-ggsave(paste0("S3\\figures_tables\\fig_results_dairyc_poster_weight.png"), plot = fig_results_dairyc, width = 4.5, height = 2.25)
-
-
-# Predictions for external sequence sets - CDC IRAT
-
-pred_weight <- read.csv(paste0("S3\\data\\irat\\preds_weight_", set, "_raw.csv"))
-irat_df <- read.csv("S3/data/irat/cdc_irat.csv", fileEncoding="UTF-8-BOM") %>% filter(incomplete != "Y")
-
-fig_results_cdc_error_weight <- pred_weight %>%
-  left_join(irat_df) %>%
-  group_by(gid, id, host, emergence) %>% 
-  summarise_at(vars("hzoon"), list(med = median, upper = ~quantile(., probs = 0.25), lower = ~quantile(., probs = 0.75))) %>%
-  mutate(host = case_when(host == "za" ~ "avian, human-isolated",
-                          host == "a" ~ "avian",
-                          host == "zm" ~ "mammal, human-isolated",
-                          host == "m" ~ "mammal")) %>%
-  ggplot(aes(x = emergence, y = med, ymin = upper, ymax = lower, color = host, fill = host, label = id)) +
-  geom_errorbar(alpha = 0.4, lwd = 1.2, linewidth = 1.2, width=0) +
-  geom_point() +
-  geom_hline(aes(yintercept = read.csv("S3/analysis/stack_weight_results.csv") %>% pull(threshold)), linetype = "dashed", color = "gray30", linewidth = 1.2, lwd = 1.2) +
-  geom_text(hjust=-0.5, vjust=-0.2, show.legend  = FALSE) +
-  scale_y_continuous(limits = c(0, 1), expand = c(0,0.1)) +
-  scale_x_continuous(limits = c(2.7, 7.7), expand = c(0,0)) +
-  ylab("p(zoonotic))") +
-  xlab("CDC IRAT emergence score") +
-  guides(label = "none") +
-  theme_bw() +
-  theme(plot.background = element_rect(fill = "#F2F6F9", color = "#F2F6F9"),
-        axis.title.x = element_text(size=10),
-        axis.title.y = element_text(size=10),
-        legend.title=element_blank(),
-        legend.margin=margin(t = 0, unit='cm'),
-        legend.position = c(.82,.82),
-        legend.key.size = unit(0.4, 'cm'))
-
-ggsave(paste0("S3\\figures_tables\\fig_results_cdc_poster_weight.png"), plot = fig_results_cdc_error_weight, width = 6.5*2.5/3, height = 2.5)
