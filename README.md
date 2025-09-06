@@ -26,7 +26,7 @@ Additional large data files containing the genome sequence feature sets and fina
 - `01a-01f` R scripts construct individual machine learning models (12 feature sets * 8 gene/proteins * 13 holdout sets) to predict zoonotic status using five different binary classification algorithms, which are parallelised by default.
 - The exception is `01e_create_training_fold_indices.R` which extracts the previously defined folds for cross-validation during parameter optimisation, to supply to XGBoost separately in `01f_build_xgb.R`
 - `02_evaluate_validate.R` loads all individual models and evaluates performance on holdout subtypes.
-- `03_stack_weighted_model.R` constructs a LASSO logistic regression `stack`, or meta-learner model, using inputs from the best individual models as new features, before evaluating performance on holdout subtypes
+- `03_stack_weighted_model.R` constructs a LASSO logistic regression "stack", or meta-learner model, using inputs from the best individual models as new features, before evaluating performance on holdout subtypes
 - `04_stack_weighted_varimp.R` calculates variable importance by permuting each raw feature used within models within the stack one-by-one; <b>note this can require lengthy computation and is best split into a batch process along the vector `varnames`</b>
 - `05_figs_tables.R` generates the figures in folder "figures_tables"
 
