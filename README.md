@@ -7,7 +7,7 @@ This work takes a large set of avian influenza virus genome sequences from both 
 Additional large data files containing the genome sequence feature sets and final trained stack ensemble models are available at [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17068424.svg)](https://doi.org/10.5281/zenodo.17068424). These files should nest within the folders herein when downloaded.
 
 
-## scripts
+## scripts/
 ### data_scripts/
 
 - `00_startup_data_process.R` sets options for sequence data processing, and calls the remaining R scripts in turn.
@@ -30,7 +30,7 @@ Additional large data files containing the genome sequence feature sets and fina
 - `04_stack_weighted_varimp.R` calculates variable importance by permuting each raw feature used within models within the stack one-by-one; <b>note this can require lengthy computation and is best split into a batch process along the vector `varnames`</b>
 - `05_figs_tables.R` generates the figures in folder "figures_tables"
 
-## data
+## data/
 
 - `fold_indices_list.rds` defines 5-fold cross-validation data folds for consistency between model runs
 - `allflu_wgs_ref.csv` defines ID, source, host label, and date for all sequences considered for analysis.
@@ -44,6 +44,6 @@ Analytical result outputs describing:
 - performance of stack ensemble models on held out test subtypes
 - permutation variable importance of genomic and proteomic features
 
-## figures_tables
+## figures_tables/
 
 Contains figures as used in manuscript.
