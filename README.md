@@ -32,9 +32,9 @@ Additional large data files containing the genome sequence feature sets and fina
 
 ## data
 
-`fold_indices_list.rds` defines 5-fold cross-validation data folds for consistency between model runs
-`allflu_wgs_ref.csv` defines ID, source, host label, and date for all sequences considered for analysis.
-`holout_clusters/` contains cluster members and cluster representative IDs selected when sequences were clustered with different parameter sets and excluding different holdout subtypes.
+- `fold_indices_list.rds` defines 5-fold cross-validation data folds for consistency between model runs
+- `allflu_wgs_ref.csv` defines ID, source, host label, and date for all sequences considered for analysis.
+- `holout_clusters/` contains cluster members and cluster representative IDs selected when sequences were clustered with different parameter sets and excluding different holdout subtypes.
 
 ## analysis/
 
