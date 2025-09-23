@@ -1,6 +1,6 @@
 # Code repository associated with Brierley et al., 'An AI for AI..'
 
-This repository contains supporting data, code, and result files associated with <b>Brierley et al. (2025)</b>, <i>&quot;An AI for an AI: identifying zoonotic potential of avian influenza viruses via genomic machine learning.&quot;</i>
+This repository contains supporting data, code, and result files associated with <b>Brierley et al. (2025)</b>, <i>&quot;An AI for an AI: identifying zoonotic potential of avian influenza viruses via genomic machine learning.&quot;</i> [![DOI](https://zenodo.org/badge/DOI/10.1101/2025.09.16.676011.svg)](https://doi.org/10.1101/2025.09.16.676011)
 
 This work takes a large set of avian influenza virus genome sequences from both avian and human hosts (indicative of zoonotic spillover), clusters them, calculates various genomic and proteomic feature representations, and trains supervised machine learning models to identify zoonotic sequences.
 
