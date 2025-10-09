@@ -392,7 +392,7 @@ varimp <- list.files(path = "S3\\analysis\\", pattern = "varimp_perm", full.name
 fig_varimp_ordered <- varimp %>% 
   filter(AUC_loss > 0) %>%
   mutate(label = paste0(focgene, ", ", featset),
-         label = forcats::fct_reorder(label, AUC_loss, .fun = mean, .desc = TRUE)) %>%
+         label = forcats::fct_reorder(label, AUC_loss, .fun = median, .desc = TRUE)) %>%
   ggplot(aes(x = label, y = AUC_loss, fill = focgene)) +
   geom_boxplot(alpha = 0.9) +
   theme_bw() +
