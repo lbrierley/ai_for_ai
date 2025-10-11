@@ -1,5 +1,5 @@
 ######################################################################################
-# this script calculate weighted mean (log OR), and plots heatmap for protein seqs
+# this script calculate weighted mean (log OR), and plots heatmap for nucleotide seqs
 ######################################################################################
 
 # Load libraries
@@ -12,17 +12,17 @@ library(ggrepel)
 library(scales)
 library(tidyverse)
 
-# Define feature (all_prot for all protein features)
-feat <- "all_prot"
+# Define feature (all_nuc for all nucleotide features)
+feat <- "3mers"
 
 proteins <- c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")
 # Define paths
 project_root <- normalizePath("./S3/")
 varimp_dir <- file.path(project_root, "analysis")
-if (feat == "all_prot") {
-  output_path <- file.path(project_root, "data/full/mapping/kmer_or_results/prot/")
+if (feat == "all_nuc") {
+  output_path <- file.path(project_root, "data/full/mapping/kmer_or_results/nuc/")
 } else {
-  output_path <- file.path(project_root, paste0("data/full/mapping/kmer_or_results/prot/", feat))
+  output_path <- file.path(project_root, paste0("data/full/mapping/kmer_or_results/nuc/", feat))
 }
 
 ################################################################################
@@ -54,11 +54,13 @@ varimp_weights <- varimp_paths %>%
   bind_rows() %>%
   filter(!is.na(importance) & !is.na(feature)) %>%
   mutate(w = LDATS::softmax(importance)) # Softmax function for weights (new weights sum to 1)
+
+
 ################################################################################
 # Function to process weighted log(OR) for one protein
 process_weighted_logOR <- function(protein, feature_type) {
-  if (feature_type == "all_prot") {
-    feat_ORs <- list.files("H:\\Working\\ai_for_ai\\S3/data/full/mapping/kmer_or_results/prot",
+  if (feature_type == "all_nuc") {
+    feat_ORs <- list.files("H:\\Working\\ai_for_ai\\S3/data/full/mapping/kmer_or_results/nuc",
                            pattern = "odds_ratio_by_position_with_p.csv",
                            recursive = TRUE,
                            full.names = TRUE
@@ -105,7 +107,7 @@ process_weighted_logOR <- function(protein, feature_type) {
     ) %>%
     filter(!is.na(w_mean_abs_logOR)) %>%
     select(-w_sum)
-  if (feature_type == "all_prot") {
+  if (feature_type == "all_nuc") {
     # save both unweighted and weigthed results
     write_csv(pos_unweighted, file.path(paste0(output_path, "/", protein, "_position_mean_abs_logOR.csv")))
     write_csv(pos_weighted, file.path(paste0(output_path, "/", protein, "_position_weighted_mean_abs_logOR.csv")))
@@ -117,6 +119,8 @@ process_weighted_logOR <- function(protein, feature_type) {
   message("Completed weight calc: ", protein, " [Feature: ", feature_type, "]")
 }
 
+
+
 # function for plot
 plot_weighted_logOR <- function(
     protein,
@@ -125,7 +129,7 @@ plot_weighted_logOR <- function(
     vmin = 0.0, vmax = 3.0, center = 1.5,
     fig_width = 12, fig_height = 2, legend_height_cm = 4) {
   # Construct input CSV path
-  if (feature_type == "all_prot") {
+  if (feature_type == "all_nuc") {
     csv_path <- file.path(paste0(output_path, "/", protein, "_position_weighted_mean_abs_logOR.csv"))
   } else {
     csv_path <- file.path(paste0(output_path, "/", protein, "/", protein, "_position_weighted_mean_abs_logOR.csv"))
@@ -192,7 +196,7 @@ plot_weighted_logOR <- function(
       )
     )
   # Save plot
-  if (feature_type == "all_prot") {
+  if (feature_type == "all_nuc") {
     out_path <- file.path(paste0(output_path, "/weighted_mean_heatmap_", feature_type, "_", protein, ".png"))
   } else {
     out_path <- file.path(paste0(output_path, "/", protein, "/weighted_mean_heatmap_", feature_type, "_", protein, ".png"))

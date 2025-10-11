@@ -7,8 +7,8 @@ rm(list = ls())
 project_root <- normalizePath("./S3/")
 
 # Input and output paths for chosen nucleotide/protein feature set
-input_base <- file.path(project_root, "data/full/mapping/binary_result/prot/ctdc")
-output_base <- file.path(project_root, "data/full/mapping/kmer_or_results/prot/ctdc")
+input_base <- file.path(project_root, "data/full/mapping/binary_result/nuc/3mers")
+output_base <- file.path(project_root, "data/full/mapping/kmer_or_results/nuc/3mers")
 
 # Function to compute odds ratio per-position
 or_function <- function(

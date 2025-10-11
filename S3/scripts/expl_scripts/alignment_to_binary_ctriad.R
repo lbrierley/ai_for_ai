@@ -78,7 +78,7 @@ binary_conversion_ctriad <- function(sequences, output_folder) {
 
 protein_types <- c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")
 
-foreach(protein = protein_types, .packages = c("Biostrings")) %do% {
+for (protein in protein_types) {
   fasta_file <- file.path(input_dir, paste0("aligned_", protein, ".fasta"))
   sequences <- readAAStringSet(fasta_file)
   output_dir <- file.path(output_base, protein)
@@ -91,4 +91,4 @@ foreach(protein = protein_types, .packages = c("Biostrings")) %do% {
 }
 
 
-stopCluster()
+stopCluster(cl)

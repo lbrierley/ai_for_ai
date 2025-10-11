@@ -2,7 +2,6 @@
 # This script generates binary sequences for CTD (Composition-Transition-Distribution)
 ######################################################################################################
 
-
 # Load library
 library(Biostrings)
 library(parallel)
@@ -123,7 +122,7 @@ binary_conversion_descriptors <- function(sequences, descriptor_name, output_fol
 
 protein_types <- c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")
 
-foreach(protein = protein_types, .packages = c("Biostrings")) %dopar% {
+for (protein in protein_types) {
   fasta_file <- file.path(input_dir, paste0("aligned_", protein, ".fasta"))
   sequences <- readAAStringSet(fasta_file)
   for (descriptor in names(descriptor_groups)) {
@@ -137,4 +136,4 @@ foreach(protein = protein_types, .packages = c("Biostrings")) %dopar% {
   }
 }
 
-stopCluster()
+stopCluster(cl)
