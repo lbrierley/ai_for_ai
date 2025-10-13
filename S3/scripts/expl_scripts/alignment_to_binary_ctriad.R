@@ -37,8 +37,10 @@ binary_conversion_ctriad <- function(sequences, output_folder) {
   binary_matrices <- list()
   # Loop through each combination
   foreach(pattern = all_patterns) %dopar% {
-    # Skip if already done
-    if (!file.exists(file.path(output_folder, paste0("binary_CTriad_", pattern, ".csv")))) {
+    # Only run if not already done, or if already done and failed (small file size)
+    if (!file.exists(file.path(output_folder, paste0("binary_CTriad_", pattern, ".csv"))) |
+        (file.exists(file.path(output_folder, paste0("binary_CTriad_", pattern, ".csv"))) &
+         file.size(file.path(output_folder, paste0("binary_CTriad_", pattern, ".csv"))) < 50000)) {
       binary_matrix <- list()
       # Loop through each sequence
       for (i in seq_along(sequences)) {

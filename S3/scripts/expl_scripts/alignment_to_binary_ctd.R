@@ -97,25 +97,30 @@ binary_conversion_descriptors <- function(sequences, descriptor_name, output_fol
   groups <- descriptor_groups[[descriptor_name]]
   binary_matrices <- list()
   for (group_name in names(groups)) {
-    group_residues <- groups[[group_name]]
-    binary_matrix <- list()
-    for (i in seq_along(sequences)) {
-      name <- names(sequences)[i]
-      seq_raw <- as.character(sequences[[i]])
-      seq_raw <- gsub("\\s+", "", seq_raw)
-      gapless_seq <- gsub("-", "", seq_raw)
-      orig_pos <- which(strsplit(seq_raw, "")[[1]] != "-")
-      binary_vector <- rep(0, nchar(seq_raw))
-      group_binary <- scan_group_binary(gapless_seq, group_residues)
-      binary_vector[orig_pos] <- group_binary
-      binary_matrix[[name]] <- binary_vector
+    # Only run if not already done, or if already done and failed (small file size)
+    if (!file.exists(file.path(output_folder, paste0("binary_CTDC_", descriptor_name, ".", group_name, ".csv"))) |
+        (file.exists(file.path(output_folder, paste0("binary_CTDC_", descriptor_name, ".", group_name, ".csv"))) &
+         file.size(file.path(output_folder, paste0("binary_CTDC_", descriptor_name, ".", group_name, ".csv"))) < 50000)) {
+      group_residues <- groups[[group_name]]
+      binary_matrix <- list()
+      for (i in seq_along(sequences)) {
+        name <- names(sequences)[i]
+        seq_raw <- as.character(sequences[[i]])
+        seq_raw <- gsub("\\s+", "", seq_raw)
+        gapless_seq <- gsub("-", "", seq_raw)
+        orig_pos <- which(strsplit(seq_raw, "")[[1]] != "-")
+        binary_vector <- rep(0, nchar(seq_raw))
+        group_binary <- scan_group_binary(gapless_seq, group_residues)
+        binary_vector[orig_pos] <- group_binary
+        binary_matrix[[name]] <- binary_vector
+      }
+      binary_df <- as.data.frame(do.call(rbind, binary_matrix))
+      rownames(binary_df) <- names(binary_matrix)
+      binary_matrices[[group_name]] <- binary_df
+      output_file <- file.path(output_folder, paste0("binary_CTDC_", descriptor_name, ".", group_name, ".csv"))
+      dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
+      write.csv(binary_df, output_file, row.names = TRUE)
     }
-    binary_df <- as.data.frame(do.call(rbind, binary_matrix))
-    rownames(binary_df) <- names(binary_matrix)
-    binary_matrices[[group_name]] <- binary_df
-    output_file <- file.path(output_folder, paste0("binary_CTDC_", descriptor_name, ".", group_name, ".csv"))
-    dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
-    write.csv(binary_df, output_file, row.names = TRUE)
   }
   return(binary_matrices)
 }

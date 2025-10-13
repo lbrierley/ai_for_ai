@@ -57,37 +57,42 @@ binary_conversion <- function(sequences, k, output_folder) {
   binary_matrices <- list()
   # Loop through each kmer
   foreach(kmer = all_kmers) %dopar% {
-    binary_matrix <- list() # stores the binary vectors of all sequences
-    # Loop through each sequence
-    for (i in seq_along(sequences)) {
-      name <- names(sequences)[i] # this gets sequence name
-      seq_raw <- as.character(sequences[[i]])
-      seq_raw <- gsub("\\s+", "", seq_raw) # Remove whitespace
-      # Remove gaps to get gapless sequence
-      gapless_seq <- gsub("-", "", seq_raw)
-      gapless_length <- nchar(gapless_seq)
-      # Map gapless positions to original positions
-      orig_pos <- which(strsplit(seq_raw, "")[[1]] != "-")
-      # Create a binary vector filled with 0, it should be same length as seq_orig
-      binary_vector <- rep(0, nchar(seq_raw))
-      # Scan gapless sequence for k-mer matches
-      for (j in 1:(gapless_length - k + 1)) {
-        window <- substr(gapless_seq, j, j + k - 1)
-        if (window == kmer) {
-          # Map k-mer back to the gapped sequence
-          orig_kmer_pos <- orig_pos[j:(j + k - 1)]
-          binary_vector[orig_kmer_pos] <- 1
+    # Only run if not already done, or if already done and failed (small file size)
+    if (!file.exists(file.path(output_folder, paste0("binary_DPC_", kmer, ".csv"))) |
+        (file.exists(file.path(output_folder, paste0("binary_DPC_", kmer, ".csv"))) &
+         file.size(file.path(output_folder, paste0("binary_DPC_", kmer, ".csv"))) < 50000)) {
+      binary_matrix <- list() # stores the binary vectors of all sequences
+      # Loop through each sequence
+      for (i in seq_along(sequences)) {
+        name <- names(sequences)[i] # this gets sequence name
+        seq_raw <- as.character(sequences[[i]])
+        seq_raw <- gsub("\\s+", "", seq_raw) # Remove whitespace
+        # Remove gaps to get gapless sequence
+        gapless_seq <- gsub("-", "", seq_raw)
+        gapless_length <- nchar(gapless_seq)
+        # Map gapless positions to original positions
+        orig_pos <- which(strsplit(seq_raw, "")[[1]] != "-")
+        # Create a binary vector filled with 0, it should be same length as seq_orig
+        binary_vector <- rep(0, nchar(seq_raw))
+        # Scan gapless sequence for k-mer matches
+        for (j in 1:(gapless_length - k + 1)) {
+          window <- substr(gapless_seq, j, j + k - 1)
+          if (window == kmer) {
+            # Map k-mer back to the gapped sequence
+            orig_kmer_pos <- orig_pos[j:(j + k - 1)]
+            binary_vector[orig_kmer_pos] <- 1
+          }
         }
+        binary_matrix[[name]] <- binary_vector
       }
-      binary_matrix[[name]] <- binary_vector
+      # Convert binary vector into dataframe
+      binary_df <- as.data.frame(do.call(rbind, binary_matrix))
+      rownames(binary_df) <- names(binary_matrix)
+      binary_matrices[[kmer]] <- binary_df
+      # Save dataframe as a CSV file
+      output_file <- file.path(output_folder, paste0("binary_DPC_", kmer, ".csv"))
+      write.csv(binary_df, output_file, row.names = TRUE)
     }
-    # Convert binary vector into dataframe
-    binary_df <- as.data.frame(do.call(rbind, binary_matrix))
-    rownames(binary_df) <- names(binary_matrix)
-    binary_matrices[[kmer]] <- binary_df
-    # Save dataframe as a CSV file
-    output_file <- file.path(output_folder, paste0("binary_DPC_", kmer, ".csv"))
-    write.csv(binary_df, output_file, row.names = TRUE)
   }
   return(binary_matrices)
 }
