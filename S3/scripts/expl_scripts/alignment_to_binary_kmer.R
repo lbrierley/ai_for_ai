@@ -18,7 +18,7 @@ input_dir <- file.path(project_root, "data/full/mapping/mafft_result/nuc")
 output_base <- file.path(project_root, paste0("data/full/mapping/binary_result/nuc/", k, "mers"))
 
 # Set parallelisation - to disable, comment out, and change %dopar% to %do%
-cl <- makePSOCKcluster(5)
+cl <- makePSOCKcluster(6)
 registerDoParallel(cl)
 
 # Function to generate all possible k-mers

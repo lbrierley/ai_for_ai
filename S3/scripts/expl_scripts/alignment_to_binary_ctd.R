@@ -11,10 +11,10 @@ library(foreach)
 # Define paths
 project_root <- normalizePath("./S3/")
 input_dir <- file.path(project_root, "data/full/mapping/mafft_result/prot")
-output_base <- file.path(project_root, "data/full/mapping/binary_result/prot/ctdc")
+output_base <- file.path(project_root, "data/full/mapping/binary_result/prot/ctd")
 
 # Set parallelisation - to disable, comment out, and change %dopar% to %do%
-cl <- makePSOCKcluster(8)
+cl <- makePSOCKcluster(6)
 registerDoParallel(cl)
 
 # define decriptor groups
@@ -92,8 +92,8 @@ scan_group_binary <- function(sequence, group_residues) {
   as.integer(aa_vector %in% group_residues)
 }
 
-# function that encodes sequences per descriptor
-binary_conversion_descriptors <- function(sequences, descriptor_name, output_folder) {
+# function that encodes composition per descriptor
+binary_conversion_ctd_c <- function(sequences, descriptor_name, output_folder) {
   groups <- descriptor_groups[[descriptor_name]]
   binary_matrices <- list()
   for (group_name in names(groups)) {
@@ -125,6 +125,96 @@ binary_conversion_descriptors <- function(sequences, descriptor_name, output_fol
   return(binary_matrices)
 }
 
+# function that encodes transitions per descriptor
+binary_conversion_ctd_t <- function(sequences, descriptor_name, output_folder) {
+  groups <- descriptor_groups[[descriptor_name]]
+  transitions <- c("1221", "1331", "2332")
+  binary_matrices <- list()
+  for (transition_name in transitions) {
+    # Only run if not already done, or if already done and failed (small file size)
+    if (!file.exists(file.path(output_folder, paste0("binary_CTDT_", descriptor_name, ".Tr", transition_name, ".csv"))) |
+        (file.exists(file.path(output_folder, paste0("binary_CTDT_", descriptor_name, ".Tr", transition_name, ".csv"))) &
+         file.size(file.path(output_folder, paste0("binary_CTDT_", descriptor_name, ".Tr", transition_name, ".csv"))) < 50000)) {
+      # identify groups from transition code string
+      transitions_valid <- as.numeric(unique(unlist(strsplit(transitions[1], "")))) 
+      g_a <- groups[[transitions_valid[1]]]
+      g_b <- groups[[transitions_valid[2]]]
+      # identify valid dipeptides for given transition code string
+      transition_kmers <- c(as.vector(outer(g_a, g_b, paste0)), as.vector(outer(g_b, g_a, paste0))) 
+      binary_matrix <- list()
+      for (i in seq_along(sequences)) {
+        name <- names(sequences)[i]
+        seq_raw <- as.character(sequences[[i]])
+        seq_raw <- gsub("\\s+", "", seq_raw)
+        gapless_seq <- gsub("-", "", seq_raw)
+        gapless_length <- nchar(gapless_seq)
+        orig_pos <- which(strsplit(seq_raw, "")[[1]] != "-")
+        binary_vector <- rep(0, nchar(seq_raw))
+        for (j in 1:(gapless_length - 1)) {
+          window <- substr(gapless_seq, j, j + 1)
+          if (window %in% transition_kmers) {
+            # Map k-mer back to the gapped sequence
+            orig_kmer_pos <- orig_pos[j:(j + 1)]
+            binary_vector[orig_kmer_pos] <- 1
+          }
+        }
+        binary_matrix[[name]] <- binary_vector
+      }
+      binary_df <- as.data.frame(do.call(rbind, binary_matrix))
+      rownames(binary_df) <- names(binary_matrix)
+      binary_matrices[[transition_name]] <- binary_df
+      output_file <- file.path(output_folder, paste0("binary_CTDT_", descriptor_name, ".Tr", transition_name, ".csv"))
+      dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
+      write.csv(binary_df, output_file, row.names = TRUE)
+    }
+  }
+  return(binary_matrices)
+}
+
+# function that encodes distribution per descriptor
+binary_conversion_ctd_d <- function(sequences, descriptor_name, output_folder) {
+  groups <- descriptor_groups[[descriptor_name]]
+  residue_nums <- c(0, 25, 50, 75, 100)
+  binary_matrices <- list()
+  for (group_name in names(groups)) {
+    for (residue_num in residue_nums) {
+      # Only run if not already done, or if already done and failed (small file size)
+      if (!file.exists(file.path(output_folder, paste0("binary_CTDD_", descriptor_name, ".", gsub("G", "", group_name), ".residue", residue_num, ".csv"))) |
+          (file.exists(file.path(output_folder, paste0("binary_CTDD_", descriptor_name, ".", gsub("G", "", group_name), ".residue", residue_num, ".csv"))) &
+           file.size(file.path(output_folder, paste0("binary_CTDD_", descriptor_name, ".", gsub("G", "", group_name), ".residue", residue_num, ".csv"))) < 50000)) {
+        group_residues <- groups[[group_name]]
+        binary_matrix <- list()
+        for (i in seq_along(sequences)) {
+          name <- names(sequences)[i]
+          seq_raw <- as.character(sequences[[i]])
+          seq_raw <- gsub("\\s+", "", seq_raw)
+          gapless_seq <- gsub("-", "", seq_raw)
+          orig_pos <- which(strsplit(seq_raw, "")[[1]] != "-")
+          binary_vector <- rep(0, nchar(seq_raw))
+          # Identify all matching residues
+          group_binary <- scan_group_binary(gapless_seq, group_residues)
+          res_all <- which(group_binary == 1)
+          # Identify given percentile's residue
+          res_position <- ceiling((residue_num / 100) * length(res_all))
+          # Constrain to be within first/last residues
+          res_position <- max(1, min(res_position, length(res_all)))
+          # Flag this residue in the original position
+          binary_vector[orig_pos[res_all[res_position]]] <- 1
+          binary_matrix[[name]] <- binary_vector
+        }
+        binary_df <- as.data.frame(do.call(rbind, binary_matrix))
+        rownames(binary_df) <- names(binary_matrix)
+        binary_matrices[[group_name]] <- binary_df
+        output_file <- file.path(output_folder, paste0("binary_CTDD_", descriptor_name, ".", group_name, ".residue", residue_num, ".csv"))
+        dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
+        write.csv(binary_df, output_file, row.names = TRUE)
+      }
+    }
+  }
+  return(binary_matrices)
+}
+
+
 protein_types <- c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")
 
 for (protein in protein_types) {
@@ -136,7 +226,9 @@ for (protein in protein_types) {
     if (!dir.exists(output_dir)) {
       stop(paste("Output directory does not exist:", output_dir))
     }
-    binary_conversion_descriptors(sequences, descriptor, output_dir)
+    binary_conversion_ctd_c(sequences, descriptor, output_dir)
+    binary_conversion_ctd_t(sequences, descriptor, output_dir)
+    binary_conversion_ctd_d(sequences, descriptor, output_dir)
     message("Completed binary encoding for: ", protein, " using ", descriptor)
   }
 }
