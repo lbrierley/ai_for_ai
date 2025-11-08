@@ -1,3 +1,5 @@
+rm(list = ls())
+
 # Install and load required libraries
 if (!requireNamespace("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
@@ -8,10 +10,8 @@ if (!requireNamespace("Biostrings", quietly = TRUE))
 library(Biostrings)
 
 # Define directories
-input_dir <- "/hpscol02/tenant1/zoonosis-risk-ai/zoonosis-risk-ai-modelling/S3/data/full/mapping/prot/"
-output_dir <- "/hpscol02/tenant1/zoonosis-risk-ai/zoonosis-risk-ai-modelling/S3/data/full/mapping/mafft_result/prot"
-
-
+input_dir <- "S3/data/full/mapping/mafft_input/prot"
+output_dir <- "S3/data/full/mapping/mafft_result/prot"
 
 # Define protein types
 protein_types <- c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")
@@ -37,7 +37,7 @@ for (protein in protein_types) {
   # Align with MAFFT
   aligned_path <- file.path(output_dir, paste0("aligned_", protein, ".fasta"))
   cmd <- sprintf("mafft --auto --leavegappyregion %s > %s", combined_path, aligned_path)
-  system(cmd)
+  system(cmd, intern = TRUE, show.output.on.console = TRUE, ignore.stdout=FALSE, ignore.stderr=FALSE, wait=FALSE)
   
   message("Completed: ", protein)
 }

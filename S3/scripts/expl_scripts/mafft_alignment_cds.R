@@ -10,8 +10,8 @@ if (!requireNamespace("Biostrings", quietly = TRUE))
 library(Biostrings)
 
 # Define directories
-input_dir <- "S3/data/full/mapping/mafft_input/nuc"
-output_dir <- "S3/data/full/mapping/mafft_result/nuc"
+input_dir <- "S3/data/full/mapping/mafft_input/cds"
+output_dir <- "S3/data/full/mapping/mafft_result/cds"
 
 # Define protein types
 protein_types <- c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")
@@ -41,5 +41,3 @@ for (protein in protein_types) {
   
   message("Completed: ", protein)
 }
-
-  
