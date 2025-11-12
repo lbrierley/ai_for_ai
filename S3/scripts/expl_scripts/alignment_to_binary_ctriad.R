@@ -33,7 +33,10 @@ binary_conversion_ctriad <- function(sequences, output_folder) {
     setNames(rep(g, length(ctriad_groups[[g]])), ctriad_groups[[g]])
   }))
   # Generate all possible combinations
-  all_patterns <- generate_ctriad_patterns()
+  all_patterns <- apply(expand.grid(names(ctriad_groups), 
+                                    names(ctriad_groups), 
+                                    names(ctriad_groups)), 
+                        1, function(x) paste(x, collapse = "."))
   binary_matrices <- list()
   # Loop through each combination
   foreach(pattern = all_patterns) %dopar% {

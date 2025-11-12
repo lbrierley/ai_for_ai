@@ -7,8 +7,8 @@ rm(list = ls())
 project_root <- normalizePath("./S3/")
 
 # Input and output paths for chosen nucleotide/protein feature set
-input_base <- file.path(project_root, "data/full/mapping/binary_result/nuc/3mers")
-output_base <- file.path(project_root, "data/full/mapping/kmer_or_results/nuc/3mers")
+input_base <- file.path(project_root, "data/full/mapping/binary_result/nuc/2mers")
+output_base <- file.path(project_root, "data/full/mapping/kmer_or_results/nuc/2mers")
 
 # Function to compute odds ratio per-position
 or_function <- function(
@@ -21,7 +21,7 @@ or_function <- function(
   rn <- rownames(binary_df)
   is_human <- grepl(human_pat, rn, ignore.case = TRUE)
   is_avian <- grepl(avian_pat, rn, ignore.case = TRUE)
-  if (!any(is_human) || !any(is_avian)) stop("Adjust human_pat / avian_pat.") # debugging
+  if (!any(is_human) || !any(is_avian)) stop("Adjust human_pat / avian_pat or check the input sets have all rows.") # debugging
   mat <- as.matrix(binary_df)
   storage.mode(mat) <- "numeric"
   # drop all zero columns

@@ -24,6 +24,7 @@ S3/figures_tables/outdated
 S3/figures_tables/varimp_rf
 S3/analysis/archive
 S3/scripts/old
+S3/scripts/expl_scripts/temp_check_function.R
 
 # Other do not upload
 S3/analysis/subtyperaw_backup
