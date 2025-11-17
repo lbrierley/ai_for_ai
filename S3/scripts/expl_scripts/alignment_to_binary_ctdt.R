@@ -91,7 +91,7 @@ binary_conversion_ctd_t <- function(sequences, descriptor_name, output_folder) {
   groups <- descriptor_groups[[descriptor_name]]
   transitions <- c("1221", "1331", "2332")
   binary_matrices <- list()
-  for (transition_name in transitions) {
+  foreach(transition_name = transitions) %dopar% {
     # Only run if not already done, or if already done and failed (small file size)
     if (!file.exists(file.path(output_folder, paste0("binary_CTDT_", descriptor_name, ".Tr", transition_name, ".csv"))) |
         (file.exists(file.path(output_folder, paste0("binary_CTDT_", descriptor_name, ".Tr", transition_name, ".csv"))) &

@@ -86,17 +86,11 @@ descriptor_groups <- list(
   )
 )
 
-# binary scanner function
-scan_group_binary <- function(sequence, group_residues) {
-  aa_vector <- strsplit(sequence, "")[[1]]
-  as.integer(aa_vector %in% group_residues)
-}
-
 # function that encodes composition per descriptor
 binary_conversion_ctd_c <- function(sequences, descriptor_name, output_folder) {
   groups <- descriptor_groups[[descriptor_name]]
   binary_matrices <- list()
-  for (group_name in names(groups)) {
+  foreach(group_name = names(groups)) %dopar% {
     # Only run if not already done, or if already done and failed (small file size)
     if (!file.exists(file.path(output_folder, paste0("binary_CTDC_", descriptor_name, ".", group_name, ".csv"))) |
         (file.exists(file.path(output_folder, paste0("binary_CTDC_", descriptor_name, ".", group_name, ".csv"))) &
@@ -110,7 +104,9 @@ binary_conversion_ctd_c <- function(sequences, descriptor_name, output_folder) {
         gapless_seq <- gsub("-", "", seq_raw)
         orig_pos <- which(strsplit(seq_raw, "")[[1]] != "-")
         binary_vector <- rep(0, nchar(seq_raw))
-        group_binary <- scan_group_binary(gapless_seq, group_residues)
+        # Identify all matching residues
+        aa_vector <- strsplit(gapless_seq, "")[[1]]
+        group_binary <- as.integer(aa_vector %in% group_residues)
         binary_vector[orig_pos] <- group_binary
         binary_matrix[[name]] <- binary_vector
       }

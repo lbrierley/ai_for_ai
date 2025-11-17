@@ -86,19 +86,13 @@ descriptor_groups <- list(
   )
 )
 
-# binary scanner function
-scan_group_binary <- function(sequence, group_residues) {
-  aa_vector <- strsplit(sequence, "")[[1]]
-  as.integer(aa_vector %in% group_residues)
-}
-
 # function that encodes distribution per descriptor
 binary_conversion_ctd_d <- function(sequences, descriptor_name, output_folder) {
   groups <- descriptor_groups[[descriptor_name]]
   residue_nums <- c(0, 25, 50, 75, 100)
   binary_matrices <- list()
   for (group_name in names(groups)) {
-    for (residue_num in residue_nums) {
+    foreach(residue_num = residue_nums) %dopar% {
       # Only run if not already done, or if already done and failed (small file size)
       if (!file.exists(file.path(output_folder, paste0("binary_CTDD_", descriptor_name, ".", gsub("G", "", group_name), ".residue", residue_num, ".csv"))) |
           (file.exists(file.path(output_folder, paste0("binary_CTDD_", descriptor_name, ".", gsub("G", "", group_name), ".residue", residue_num, ".csv"))) &
@@ -113,7 +107,8 @@ binary_conversion_ctd_d <- function(sequences, descriptor_name, output_folder) {
           orig_pos <- which(strsplit(seq_raw, "")[[1]] != "-")
           binary_vector <- rep(0, nchar(seq_raw))
           # Identify all matching residues
-          group_binary <- scan_group_binary(gapless_seq, group_residues)
+          aa_vector <- strsplit(gapless_seq, "")[[1]]
+          group_binary <- as.integer(aa_vector %in% group_residues)
           res_all <- which(group_binary == 1)
           # Identify given percentile's residue
           res_position <- ceiling((residue_num / 100) * length(res_all))
@@ -126,7 +121,7 @@ binary_conversion_ctd_d <- function(sequences, descriptor_name, output_folder) {
         binary_df <- as.data.frame(do.call(rbind, binary_matrix))
         rownames(binary_df) <- names(binary_matrix)
         binary_matrices[[group_name]] <- binary_df
-        output_file <- file.path(output_folder, paste0("binary_CTDD_", descriptor_name, ".", group_name, ".residue", residue_num, ".csv"))
+        output_file <- file.path(output_folder, paste0("binary_CTDD_", descriptor_name, ".", gsub("G", "", group_name), ".residue", residue_num, ".csv"))
         dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
         write.csv(binary_df, output_file, row.names = TRUE)
       }
