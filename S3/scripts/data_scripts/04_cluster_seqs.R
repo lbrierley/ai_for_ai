@@ -26,7 +26,7 @@ for (minseqid_param in cluster_minseqid){
   
   for(C_param in cluster_C){
     
-    system(paste0("mmseqs.bat easy-linclust S3\\data\\full\\allflu_nuc_wgs_full.FASTA S3\\data\\full\\nuc\\wgs_full_", minseqid_param*100, "_", C_param*10, " tmp --min-seq-id ", minseqid_param ," -c ", C_param, " --cov-mode 0"),
+    system(paste0("S3\scripts\mmseqs-win64\\mmseqs.bat easy-linclust S3\\data\\full\\allflu_nuc_wgs_full.FASTA S3\\data\\full\\nuc\\wgs_full_", minseqid_param*100, "_", C_param*10, " tmp --min-seq-id ", minseqid_param ," -c ", C_param, " --cov-mode 0"),
            intern = TRUE, show.output.on.console = TRUE, ignore.stdout=FALSE, ignore.stderr=FALSE, wait=FALSE)
     
     file.remove(list.files(path = "S3\\data\\full\\nuc\\", pattern = "*.fasta", full.names = TRUE)) # Keep only the .tsv output from MMseqs2
