@@ -42,7 +42,7 @@ or_function <- function(
   b <- colSums(mat[is_avian, , drop = FALSE] == 1) # avian 1s
   d <- colSums(mat[is_avian, , drop = FALSE] == 0) # avian 0s
   # using haldane methods to avoid infinity
-  # However, +0.5 has large influences given the difference in avian and human sequence size, so add a scaled factor
+  # However, +0.5 has large influences given the difference in avian and human sequence sample size, so add a scaled factor
   if (haldane) {
     human_avian_ratio <- (a + c0) / (b + d)
     human_odds <- (a + human_avian_ratio) / (c0 + human_avian_ratio)

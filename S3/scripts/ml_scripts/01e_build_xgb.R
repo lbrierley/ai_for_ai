@@ -1,3 +1,5 @@
+## Note XGBoost requires significant computing power, and with limited GPU access you may need to run as separate jobs one segment at a time.
+
 #######################
 # Load packages, data #
 #######################
@@ -12,7 +14,7 @@ library(stringr)
 library(parallel)
 library(doParallel)
 library(foreach)
-library(glmnet)
+library(xgboost)
 
 ####################################################################################
 # Global definitions
@@ -72,16 +74,18 @@ folds_list <- lapply(seq_along(folds_list), function(x) {
   return(fold_df)
 })
 
-# Set parallelisation - to disable, comment out, and change %dopar% in line 107 to %do%
-cl <- makePSOCKcluster(detectCores() - 1)
-registerDoParallel(cl)
-clusterSetRNGStream(cl, 1429)
+# ## XGBOOST PACKAGE ALREADY USES NATIVE PARALLELISATION, SO NO NEED TO SET HERE
+# 
+# # Set parallelisation - to disable, comment out, and change %dopar% in line 107 to %do%
+# cl <- makePSOCKcluster(detectCores() - 1)
+# registerDoParallel(cl)
+# clusterSetRNGStream(cl, 1429)
 
 #######################
 # Define ML procedure #
 #######################
 
-glmnet_fun <- function(seg, featset){
+xgb_fun <- function(seg, featset){
   
   ####################################################
   # Features
@@ -164,10 +168,12 @@ glmnet_fun <- function(seg, featset){
   model <- caret::train(
     x = preds_df,
     y = train$label,
-    method = "glmnet",
+    method = "xgbTree",
     preProc = c("center", "scale"),
     metric = "Kappa",
-    weights = weights_vect,
+    colsample_bylevel = c(2/5),
+    # weights = weights_vect,   # CARET CLASS WEIGHTS DOES NOT PLAY WELL WITH XGBOOST
+    scale_pos_weight = w_hzoon/w_nz,
     trControl = trainControl(
       method = "repeatedcv",
       index = fold_indices,
@@ -177,9 +183,14 @@ glmnet_fun <- function(seg, featset){
       savePredictions = "final" # only save predictions for optimal tuning
     ),
     tuneGrid = expand.grid(
-      alpha = c(0,0.5,1), # mixing parameter (0 = ridge, 0.5 = elastic, 1 = lasso)
-      lambda = c(0.001, 0.01, 0.1, 1, 10) # regularisation parameter
-    )
+      nrounds = c(2000),
+      max_depth = c(3,4,5), 
+      eta = c(0.1,0.3,1), 
+      gamma = c(0),          
+      subsample = c(1), 
+      colsample_bytree = c(4/5),  
+      min_child_weight = c(1,3,5)
+    )  
   )
   
   return(model)
@@ -192,19 +203,17 @@ glmnet_fun <- function(seg, featset){
 #runs models through each gene, each cluster set and each feature 
 foreach (seg = 1:8) %:% 
   foreach (featset = featsets,
-           .packages = c("caret","dplyr","glmnet","tidyr","stringr")) %dopar% {
+           .packages = c("caret","dplyr","xgboost","tidyr","stringr")) %do% {
              
-             model <- glmnet_fun(seg, featset)
+             model <- xgb_fun(seg, featset)
              
              if (!is.null(model)) {
                # save outputs
                saveRDS(
                  model,
-                 file = file.path(out_dir, paste0("glmnet_", featset, "_pt_", focgene[seg], ".rds"))
+                 file = file.path(out_dir, paste0("xgb_", featset, "_pt_", focgene[seg], ".rds"))
                )
              }
              
              NULL
            }
-
-stopCluster(cl)

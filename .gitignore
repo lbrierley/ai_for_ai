@@ -2,6 +2,7 @@
 .Rhistory
 .Rapp.history
 *.Rproj
+.RDataTmp1
 
 # Data not suitable for upload
 S3/data/ext/
@@ -11,8 +12,12 @@ S3/data/full/*
 S3/data/irat/
 S3/data/partial/
 S3/data/YX/
+S3/data/segmentwise/*
+!S3/data/segmentwise/*.csv
+!S3/data/segmentwise/clust_processed
 S3/analysis/subtyperaw/
 S3/analysis/stack_tests/
+
 
 
 # Temporary folder/files
@@ -25,11 +30,14 @@ S3/figures_tables/varimp_rf
 S3/analysis/archive
 S3/scripts/old
 S3/scripts/expl_scripts/temp_check_function.R
+S3/data/segmentwise/_old/
+S3/analysis/archive_v1_preprint/
 
 # Other do not upload
 S3/analysis/subtyperaw_backup
 S3/analysis/stacks_backup
 S3/scripts/mmseqs-win64
+S3/scripts/mmseqs-updated
 S3/figures_tables/ext
 S3/figures_tables/pre_cluster
 S3/drafts
@@ -84,3 +92,4 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 
+.positai

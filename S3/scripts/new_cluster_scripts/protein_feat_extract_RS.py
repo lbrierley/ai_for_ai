@@ -5,9 +5,9 @@ import glob
 import iFeatureOmegaCLI
 
 # folders
-fasta_dir = r"S3/data/segmentwise/Raw_Sequences/protein_fastas"
-out_dir = r"S3/data/segmentwise/prot"
-params_file = r"S3/scripts/data_scripts/protein_params.json"
+fasta_dir = r"/hpscol02/tenant1/zoonosis-risk-ai/zoonosis-risk-ai-modelling/Protein_features_RS_2026_04_16/fastas"
+out_dir = r"/hpscol02/tenant1/zoonosis-risk-ai/zoonosis-risk-ai-modelling/Protein_features_RS_2026_04_16/Results"
+params_file = r"/hpscol02/tenant1/zoonosis-risk-ai/zoonosis-risk-ai-modelling/Protein_features_RS_2026_04_16/protein_params.json"
 
 os.makedirs(out_dir, exist_ok=True)
 

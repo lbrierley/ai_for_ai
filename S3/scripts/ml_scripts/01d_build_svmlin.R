@@ -15,106 +15,196 @@ library(foreach)
 library(e1071)
 
 ####################################################################################
-# Options and global definitions used in all runs to keep training sets consistent #
+# Global definitions
 ####################################################################################
 
-# Set parallelisation - to disable, comment out, and change %dopar% in line 103 to %do%
+##inputs
+cluster_dir <- "S3/data/segmentwise/clust_processed/"
+mlready_dir <- "S3/data/segmentwise/mlready/"
+folds_list <- readRDS("S3/data/segmentwise/clust_dist/folds_list.rds")
+
+#run date for file name
+run_date <- format(Sys.Date(), "%d_%m_%y")
+
+##define output directory
+out_dir <- paste0("S3/analysis/results_",run_date)
+
+if (!dir.exists(out_dir)) {
+  dir.create(out_dir, recursive = TRUE)
+}
+
+# Set order of genes relative to segments
+focgene <- c("PB2", "PB1", "PA", "HA", "NP", "NA", "M1", "NS1")
+
+
+# helper function
+canon_id <- function(x) {
+  as.character(x) %>%
+    trimws() %>%
+    str_replace_all("\\s+", " ")
+}
+
+# Specify labels for all segments up front
+label_files <- list.files(cluster_dir, pattern = "_labels\\.csv$", full.names = TRUE)
+labels_list <- lapply(seq_along(label_files), function(x) {
+  read.csv(label_files[x]) %>%
+    select(cluster_rep, label, mix) %>%
+    mutate(
+      cluster_rep = canon_id(cluster_rep),
+      label = factor(case_when(
+        label == "zoon" ~ "hzoon",
+        label == "nz" ~ "nz",
+        TRUE ~ as.character(label)
+      ))
+    ) %>%
+    distinct(cluster_rep, .keep_all = TRUE) %>%
+    rename(gid = cluster_rep)
+})
+
+# Specify features
+feature_set_files <- list.files(mlready_dir, pattern = "\\.rds$", full.names = TRUE)
+featsets <- unique(gsub(".*allflu_(.*)_pt.*", "\\1", feature_set_files))
+
+# Specify fold ids for all segments up front
+folds_list <- lapply(seq_along(folds_list), function(x) {
+  fold_df <- folds_list[[x]]
+  fold_df$gid <- canon_id(fold_df$gid)
+  return(fold_df)
+})
+
+# Set parallelisation - to disable, comment out, and change %dopar% in line 107 to %do%
 cl <- makePSOCKcluster(detectCores() - 1)
 registerDoParallel(cl)
 clusterSetRNGStream(cl, 1429)
-
-holdout_cluster_grid <- list.files(path = "S3\\data\\full\\holdout_clusters\\", pattern = "labels.csv") %>%
-  gsub("ex_|_labels.csv", "", .) %>%
-  str_split(., "_") %>% 
-  do.call(rbind.data.frame, .) %>%
-  set_colnames(c("subtype", "minseqid", "C"))
-
-run_date <- "17_02_24"
-
-dir.create(paste0("results_", run_date))
-
-cluster_chosen <- c("70_7")
 
 #######################
 # Define ML procedure #
 #######################
 
-svmlin_fun <- function(subtype){
+svmlin_fun <- function(seg, featset){
   
   ####################################################
-  # Train models on each feature set on each protein #
+  # Features
   ####################################################
   
-  labels <- read.csv(paste0("S3\\data\\full\\holdout_clusters\\ex_", subtype, "_", cluster_set, "_labels.csv")) %>% 
-    select(cluster_rep, label) %>%
-    mutate(label = factor(case_when(label == "zoon" ~ "hzoon", label == "nz" ~ "nz")) # Rearrange factor levels for better compatibility with model functions
+  # Extract feature files
+  pattern <- paste0("allflu_.*", featset, ".*_pt_", focgene[seg], "\\.rds$")
+  feat_file <- feature_set_files[grep(pattern, feature_set_files)]
+  
+  if (is.na(feat_file)) {
+    cat("No feature file found\n")
+    return(NULL)
+  }
+  
+  cat("Using feature file:\n", feat_file, "\n")
+  
+  feat_df <- readRDS(feat_file) %>%
+    mutate(gid = canon_id(gid)) %>%
+    distinct(gid, .keep_all = TRUE)
+  
+  # Build training set
+  train <- labels_list[[seg]] %>%
+    left_join(feat_df, by = "gid") %>%
+    filter(!is.na(label)) %>%
+    mutate(across(where(is.numeric), ~ tidyr::replace_na(.x, 0))) # error fixing
+  
+  preds_df <- train %>% select(!any_of(c("label", "segment", "string", "gid", "mix")))
+  
+  # Remove constant predictors
+  nzv <- nearZeroVar(preds_df)
+  if (length(nzv) > 0) preds_df <- preds_df[, -nzv, drop = FALSE]
+  
+  preds <- names(preds_df)
+  
+  if (length(preds) < 2) {
+    cat("too few predictors\n")
+    return(NULL)
+  }
+  
+  ####################################################
+  # Folds
+  ####################################################
+  
+  fold_df <- folds_list[[seg]]
+  fold_vec <- fold_df$fold[match(train$gid, fold_df$gid)]
+  
+  # # Checking progress of run
+  # cat("Fold coverage:\n")
+  # print(table(is.na(fold_vec)))
+  
+  keep <- !is.na(fold_vec) & fold_vec != "test"
+  train <- train[keep, ]
+  preds_df <- preds_df[keep, , drop = FALSE]
+  fold_vec <- fold_vec[keep]
+  
+  cat("Class balance (after folds):\n")
+  print(table(train$label))
+  
+  fold_levels <- 1:9 # 9-fold, excluding one fold for validation
+  fold_indices <- lapply(fold_levels, function(f) {
+    which(fold_vec != f)
+  })
+  
+  names(fold_indices) <- paste0("Fold", seq_along(fold_indices))
+  
+  ####################################################
+  # Weights
+  ####################################################
+  
+  label_table <- table(train$label)
+  w_nz <- 1 / as.numeric(label_table["nz"]) * 0.5
+  w_hzoon <- 1 / as.numeric(label_table["hzoon"]) * 0.5
+  weights_vect <- ifelse(train$label == "nz", w_nz, w_hzoon)
+  # sum(weights_vect)   # should sum to 1
+  
+  ####################################################
+  # Train model
+  ####################################################
+  
+  model <- caret::train(
+    x = preds_df,
+    y = train$label,
+    method = "svmLinearWeights",
+    preProc = c("center", "scale"),
+    metric = "Kappa",
+    weights = weights_vect,
+    trControl = trainControl(
+      method = "repeatedcv",
+      index = fold_indices,
+      number = length(fold_indices),
+      repeats = 1,
+      classProbs = TRUE,
+      savePredictions = "final" # only save predictions for optimal tuning
+    ),
+    tuneGrid = expand.grid(
+      cost = c(0.001, 0.1, 1, 10),
+      weight = c(1/3, 1/6, 1/9)
     )
+  )
   
-  # Load feature sets for training data clusters, rename features to indicate gene/protein being modelled
-  train <- left_join(labels,
-                     readRDS(paste0("S3\\data\\full\\mlready\\allflu_", featset, "_pt_", focgene, ".rds")) %>% 
-                       select(-any_of(c("segment", "cds_id", "enc", "GC_content"))),
-                     by = c("cluster_rep" = "gid")) %>%
-    rename_with(~paste(., focgene, sep = "_"), -c(cluster_rep, label))
-  
-  # Specify variables used
-  preds <- train %>% select(-label, -cluster_rep) %>% remove_constant %>% names
-  
-  # Create folds for 5-fold cross-validation
-  set.seed(1657)
-  fold_indices <- createMultiFolds(train$label, k = 5, times = 1)
-  
-  #################
-  # Run ML models #
-  #################
-  
-  # Train and validate linear SVM (tuning cost, weight parameters) through 5-fold cross-validation
-  # Store result as list of n models
-  train(form = label ~ .,
-        data = train %>% select(-cluster_rep),
-        method = "svmLinearWeights",
-        preProc = c("center", "scale"),
-        metric = "Kappa",
-        trControl = trainControl(method = "repeatedcv", 
-                                 index = fold_indices,
-                                 number = 5,
-                                 repeats = 1,
-                                 #verboseIter = TRUE,
-                                 classProbs = TRUE,
-								 savePredictions = TRUE),
-        tuneGrid = expand.grid(
-          cost = c(0.001, 0.1, 1, 10),
-          weight = c(1/3, 1/6, 1/9))
-  ) %>%
-    return()
+  return(model)
 }
 
 ######################################################
-# Repeat for each cluster set, gene, and feature set #
+# Run models
 ######################################################
 
-foreach (cluster_set = cluster_chosen) %:% 
-  foreach (focgene = c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")) %:% 
-  foreach (featset = list.files(path = "mlready", pattern = focgene) %>% gsub("allflu_|_pt.*.rds", "", .),
-           .packages = c("caret",
-                         "dplyr",
-                         "janitor",
-                         "magrittr", 
-                         "e1071")) %dopar% {
-    
-    ##############################################################
-    # Save list of ML models, each holding out a holdout subtype #
-    ##############################################################
-    
-    if (!dir.exists(paste0("S3/analysis/results_", run_date, "/", cluster_set))){
-      dir.create(paste0("S3/analysis/results_", run_date, "/", cluster_set))
-    }
-    
-    Map(f = svmlin_fun, subtype = unique(holdout_cluster_grid$subtype)) %>% 
-      suppressWarnings() %>% 
-      saveRDS(file=paste0("S3/analysis/results_", run_date, "/", cluster_set, 
-                          "/svmlin_list_", gsub("allflu_|_pt.*.rds", "", featset), "_pt_", focgene, ".rds"))
-    
-  }
+#runs models through each gene, each cluster set and each feature 
+foreach (seg = 1:8) %:% 
+  foreach (featset = featsets,
+           .packages = c("caret","dplyr","e1071","tidyr","stringr")) %dopar% {
+             
+             model <- svmlin_fun(seg, featset)
+             
+             if (!is.null(model)) {
+               # save outputs
+               saveRDS(
+                 model,
+                 file = file.path(out_dir, paste0("svmlin_", featset, "_pt_", focgene[seg], ".rds"))
+               )
+             }
+             
+             NULL
+           }
 
 stopCluster(cl)

@@ -1,12 +1,13 @@
 ####################################################################
 #                                                                  #
-#          Supporting R scripts for: Brierley et al. 2025          #
+#          Supporting R scripts for: Brierley et al. 2026          #
 #                                                                  #
 #     An AI for an AI: identifying zoonotic potential of avian     #
 #          influenza viruses via genomic machine learning          #
 #                                                                  #
-#                    Compiled by L. Brierley                       #
-#      University of Liverpool, University of Glasgow, 2025        #
+#         Compiled by L. Brierley, E. Abdallah, R. Sanders,        # 
+#                      C. Belsey, L. Cattarino                     #
+#   University of Liverpool, University of Glasgow, UKHSA, 2026    #
 #                                                                  #
 ####################################################################
 
@@ -21,6 +22,9 @@ library(Biostrings) ## installable from Bioconductor via the BiocManager::instal
 library(coRdon)     ## installable from Bioconductor via the BiocManager::install function
 library(magrittr)
 library(ORFik)      ## installable from Bioconductor via the BiocManager::install function
+library(philentropy)
+library(cluster)
+library(readxl)
 library(reshape2)
 library(R.utils)
 library(seqinr)
@@ -38,22 +42,15 @@ codon_ref <- data.frame(aminoacid = Biostrings::GENETIC_CODE) %>%
   group_by(aminoacid) %>%
   mutate(deg = n())
 
-# Do you want to recalculate genomic and proteomic feature sets? Note this can take several hours.
+# Do you want to recalculate genomic and proteomic feature sets?
 recalculate_feat_sets <- FALSE
 
 # Do you want to recalculate sequence clustering?
 recalculate_cluster <- FALSE
 
 # Set MMseqs2 Linclust parameters to try
-cluster_minseqid <- c(0.60, 0.70, 0.80)
-cluster_C <- c(0.6, 0.7, 0.8)
-
-# Define chosen MMseqs2 Linclust parameters
-cluster_chosen <- c("70_7")
-
-# Define zoonotic and non-zoonotic holdout subtypes of influenza virus
-holdout_zoon <- c("H7N9", "H5N1", "H9N2", "H5N6", "H10N8", "H7N3", "H3N8", "H7N7", "H7N4")
-holdout_nz <- c("H4N6", "H16N3", "H4N8", "H8N4")
+cluster_minseqid <- c(0.85, 0.9, 0.925, 0.95, 0.975, 0.99)
+cluster_C <- c(0.7, 0.8, 0.9, 0.95)
 
 ###############################
 # Run data processing scripts #
@@ -67,7 +64,7 @@ source("S3\\scripts\\data_scripts\\02_process_GISAID_NCBI_data.R")
 
 if(recalculate_feat_sets == TRUE) {
   header(verbose, "Calculating genomic and proteomic feature sets", padding=0)
-  source("S3\\scripts\\data_scripts\\03_calc_feats.R")
+  source("S3\\scripts\\data_scripts\\03_calc_feats.R") # Set to run with parallelisation
 }
 
 if(recalculate_cluster == TRUE) {
@@ -77,3 +74,6 @@ source("S3\\scripts\\data_scripts\\04_cluster_seqs.R")
 
 header(verbose, "Processing chosen sequence clusters", padding=0)
 source("S3\\scripts\\data_scripts\\05_process_clusts.R")
+
+header(verbose, "Assigning training and test folds from clusters", padding=0)
+source("S3\\scripts\\data_scripts\\06_cluster_folds.R")

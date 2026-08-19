@@ -22,138 +22,213 @@ library(xgboost)
 library(ranger)
 library(glmnet)
 
-###############
-# Set options #
-###############
+######################
+# Set options, paths #
+######################
 
-# Set parallelisation - to disable, comment out, and change %dopar% in line 69 and 104 to %do%
-cl <- makePSOCKcluster(detectCores() - 1)
-registerDoParallel(cl)
-clusterSetRNGStream(cl, 1429)
+results_date <- "17_07_26"
+results_path <- paste0("S3\\analysis\\results_", results_date)
 
-results_date_list <- c("14_02_24","15_02_24","16_02_24","17_02_24","18_02_24")
-method_list <- c("rf","glmnet","xgb","svmlin","svm")
+cluster_dir <- "S3/data/segmentwise/clust_processed/"
+mlready_dir <- "S3/data/segmentwise/mlready/"
+
+####################
+# Define functions #
+####################
+
+# helper function
+canon_id <- function(x) {
+  as.character(x) %>%
+    trimws() %>%
+    str_replace_all("\\s+", " ")
+}
 
 #######################
 # Load model pointers #
 #######################
 
-allflu_wgs_ref <- read.csv("S3\\data\\full\\allflu_wgs_ref.csv") %>%
-  mutate(label = factor(case_when(label == "zoon" ~ "hzoon", label == "nz" ~ "nz"))) # Rearrange factor levels for better compatibility with model functions
+model_list <- list.files(path = paste0("S3\\analysis\\results_", results_date))
+methods <- model_list %>% gsub("_.*", "", .) %>% unique
+featsets <- model_list %>% gsub("^[^_]*_(.*)_pt.*$", "\\1", .) %>% unique
+genes <- c("PB2","PB1","PA","HA","NP","NA","M1","NS1")
 
-holdout_cluster_grid <- list.files(path = "S3\\data\\full\\holdout_clusters\\", pattern = "labels.csv") %>%
-  gsub("ex_|_labels.csv", "", .) %>%
-  str_split(., "_") %>% 
-  do.call(rbind.data.frame, .) %>%
-  magrittr::set_colnames(c("subtype", "minseqid", "C"))
+# Specific feature set files
+feature_set_files <- list.files(mlready_dir, pattern = "\\.rds$", full.names = TRUE)
 
-cluster_chosen <- "70_7"
+# Specify fold ids for all segments up front
+folds_list <- readRDS("S3/data/segmentwise/clust_dist/folds_list.rds")
 
-holdouts <- unique(holdout_cluster_grid$subtype) %>% as.character
-holdout_zoon <- c("H7N9", "H5N1", "H9N2", "H5N6", "H10N8", "H7N3", "H3N8", "H7N7", "H7N4")
-holdout_nz <- c("H4N6", "H16N3", "H4N8", "H8N4")
+folds_list <- lapply(seq_along(folds_list), function(x) {
+  fold_df <- folds_list[[x]]
+  fold_df$gid <- canon_id(fold_df$gid)
+  return(fold_df)
+})
 
-######################################################################
-# Not currently parallelised - evaluate results for each run in turn #
-######################################################################
+# Specify labels for all segments up front
+label_files <- list.files("S3\\data\\segmentwise\\clust_processed", pattern = "_labels\\.csv$", full.names = TRUE)
 
-for(i in 1:length(results_date_list)){
-  
-  ############################################################
-  # Load in models, extract and store optimal parameter sets #
-  ############################################################
-  
-  gridsearch <- foreach (cluster_set = cluster_chosen) %:% 
-    foreach (focgene = c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")) %:% 
-    foreach (featset = list.files(path = "S3\\data\\full\\mlready", pattern = focgene) %>% gsub("allflu_|_pt.*.rds", "", .),
-             .packages = c("caret","magrittr","pROC","dplyr")) %dopar% {
+labels_list <- lapply(seq_along(label_files), function(x) {
+  read.csv(label_files[x]) %>%
+    select(cluster_rep, label, mix) %>%
+    mutate(
+      cluster_rep = canon_id(cluster_rep), # Rearrange factor levels for better compatibility with model functions
+      label = factor(case_when(
+        label == "zoon" ~ "hzoon",
+        label == "nz" ~ "nz",
+        TRUE ~ as.character(label)
+      ))
+    ) %>%
+    distinct(cluster_rep, .keep_all = TRUE) %>%
+    rename(gid = cluster_rep)
+})
+
+names(folds_list) <- genes
+names(labels_list) <- genes
+
+############################################################
+# Load in models, extract and store optimal parameter sets #
+############################################################
+
+foreach (method = methods) %do% {
+  gridsearch <- foreach (focgene = genes, .combine = bind_rows) %:%
+    foreach (featset = featsets, .combine = bind_rows,
+             .packages = c("caret","magrittr","pROC","dplyr")) %do% {
                
                # Load in ML model
-               model_list <- readRDS(paste0("S3\\analysis\\results_", results_date_list[i], "/", cluster_set, "/", method_list[i], "_list_", featset, "_pt_", focgene, ".rds"))
-               
-               # Grid search parameter optimisation on validation sets
-               gridsearch <- lapply(model_list, function(x)  x$results) %>%
-                 bind_rows() %>%
-                 mutate(cluster_set = cluster_set,
-                        featset = featset,
-                        focgene = focgene)
-               
-               gridsearch %<>%
-                 mutate(subtype = rep(holdouts, each=nrow(gridsearch)/length(holdouts))) %>%
-                 relocate(cluster_set, featset, focgene, subtype)
-               
+               model_file <- paste0(results_path, "\\", method, "_", featset, "_pt_", focgene, ".rds")
+               if (!file.exists(model_file)) {
+                 message("Note missing model: ", model_file)
+                 return(NULL)
+               }
+               model <- readRDS(model_file)
+               # Grid search parameter optimisation during cross-validation
+               gridsearch <- model$results %>%
+                 mutate(method = method,
+                        focgene = focgene,
+                        featset = featset) %>%
+                 relocate(method, focgene, featset)
                return(gridsearch)
-             }     
-  
-  gridsearch %>% 
-    unlist(recursive=FALSE) %>% 
-    unlist(recursive=FALSE) %>% 
-    bind_rows() %>%
-    write.table(file=paste0("S3\\analysis\\gridsearch_", results_date_list[i], ".csv"),
+             }
+  gridsearch %>%
+    write.table(file=paste0("S3\\analysis\\gridsearch_", results_date, "_", method, ".csv"),
                 sep=',', row.names=F, col.names=T)
-  
-  
-  
-  ####################################################################################################
-  # Load in models, predict on held out test subtype sequences, and save predictions and performance #
-  ####################################################################################################
-  
-  result_all <- foreach (cluster_set = cluster_sets) %:% 
-    foreach (focgene = c("HA", "M1", "NA", "NP", "NS1", "PA", "PB1", "PB2")) %:% 
-    foreach (featset = list.files(path = "mlready", pattern = focgene) %>% gsub("allflu_|_pt.*.rds", "", .),
-             .packages = c("caret","e1071","matrixStats","magrittr","pROC","janitor","dplyr","tidyr","purrr","forcats","stringr","tibble","kernlab","xgboost","ranger","glmnet")) %dopar% {
+}
+
+####################################################################################################
+# Load in models, save training set cross-validation predictions and performance #
+####################################################################################################
+
+foreach (focgene = genes, .combine = bind_rows) %do% {
+  result_all <- foreach (method = methods, .combine = bind_rows) %:%
+    foreach (featset = featsets, .combine = bind_rows,
+             .packages = c("caret","e1071","matrixStats","magrittr","pROC","janitor","dplyr","tidyr","purrr","forcats","stringr","tibble","kernlab","xgboost","ranger","glmnet")) %do% {
                
                # Load in ML model
-               model_list <- readRDS(paste0("S3\\analysis\\results_", results_date_list[i], "/", cluster_set, "/", method_list[i], "_list_", featset, "_pt_", focgene, ".rds"))
-               
-               # Set up result list
-               result_all <- list()
-               
-               # Set up corresponding holdout test set list
-               test_set_list <- lapply(holdouts, function(x)   
-                 left_join(allflu_wgs_ref %>% 
-                             filter(subtype == x) %>%
-                             filter(subtype %in% holdout_zoon & label == "hzoon"|subtype %in% holdout_nz) %>%  # Only consider zoonotic sequences for zoonotic holdouts
-                             select(gid, subtype, label, src),
-                           readRDS(paste0("S3\\data\\full\\mlready\\allflu_", featset, "_pt_", focgene, ".rds")) %>% 
-                             select(-any_of(c("segment", "cds_id", "enc", "GC_content"))) %>%
-                             rename_with(~paste(., focgene, sep = "_"), -c(gid)),
-                           by = c("gid")))
-               
-               # Generate predictions
-               predict_prob_test <- Map(function(model, newdata)
-                 
-                 if (nrow(newdata)>0){
-                   predict(model, newdata=newdata, type="prob")
-                 },
-                 model = model_list,
-                 newdata = test_set_list
-               ) %>% bind_rows
-               
+               model_file <- paste0(results_path, "\\", method, "_", featset, "_pt_", focgene, ".rds")
+               if (!file.exists(model_file)) {
+                 message("Note missing model: ", model_file)
+                 return(NULL)
+               }
+               model <- readRDS(model_file)
+
                # Calculate receiver operating curve
-               ROC = roc(response = test_set_list %>% bind_rows() %>% pull(label), 
-                         predictor = predict_prob_test %>% pull(hzoon),
-                         direction = ">")
+               ROC = roc(response = model$pred$obs, 
+                         predictor = model$pred$hzoon,
+                         direction = ">") # note that because pROC::roc assumes the FIRST factor level is the control, we want control > cases
                
-               subtypeacc <- data.frame(cluster_set = cluster_set,
-                                        featset = featset,
-                                        focgene = focgene,
-                                        test_set_list %>%
-                                          bind_rows %>%
-                                          select(subtype, label),
-                                        predict_prob_test) %>%
+               pred_raw <- data.frame(label = model$pred$obs,
+                                      hzoon = model$pred$hzoon,
+                                      nz = model$pred$nz) %>%
                  mutate(pred = factor(ifelse(hzoon > coords(ROC, "best", best.method="closest.topleft")$threshold, "hzoon", "nz")))
                
-               # Save raw predictions per sequence
-               write.csv(subtypeacc, file=paste0("S3\\analysis\\subtyperaw\\subtypeacc_raw_", cluster_set, "_", featset, "_", focgene, "_", results_date_list[i], ".csv"))
+               # # Save raw predictions per sequence
+               # write.csv(pred_raw, file=paste0("S3\\analysis\\pred_raw\\train_pred_raw_", method, "_", featset, "_", focgene, "_", results_date, ".csv"))
                
                # Calculate confusion matrix
-               matrix_test <- confusionMatrix(data = subtypeacc$pred, 
-                                              reference = subtypeacc$label, 
+               matrix_train <- confusionMatrix(data = pred_raw$pred, 
+                                              reference = pred_raw$label, 
                                               positive = "hzoon")
                
                # Save selected performance metrics
-               line <- bind_cols(cluster_set = cluster_set,
+               line <- data.frame(method = method,
+                                  featset = featset,
+                                  focgene = focgene, 
+                                  threshold = coords(ROC, "best", best.method="closest.topleft")$threshold,
+                                  matrix_train$overall %>% t(),
+                                  AUC = ROC$auc %>% as.numeric(),
+                                  matrix_train$byClass %>% t()) %>%
+                 mutate(across(where(is.numeric), round, 3))
+               
+               return(line)
+               
+             }
+  result_all %>%
+    write.table(file=paste0("S3\\analysis\\train_results_", results_date, "_", focgene, ".csv"),
+                sep=',', row.names=F, col.names=T)
+}
+
+
+####################################################################################################
+# Load in models, predict on held out test subtype sequences, and save predictions and performance #
+####################################################################################################
+
+foreach (focgene = genes, .combine = bind_rows) %do% {
+  result_all <- foreach (method = methods, .combine = bind_rows) %:%
+    foreach (featset = featsets, .combine = bind_rows,
+             .packages = c("caret","e1071","matrixStats","magrittr","pROC","janitor","dplyr","tidyr","purrr","forcats","stringr","tibble","kernlab","xgboost","ranger","glmnet")) %do% {
+               
+               # Load in ML model
+               model_file <- paste0(results_path, "\\", method, "_", featset, "_pt_", focgene, ".rds")
+               if (!file.exists(model_file)) {
+                 message("Note missing model: ", model_file)
+                 return(NULL)
+               }
+               model <- readRDS(model_file)
+               
+               # Load in feature files
+               pattern <- paste0("allflu_.*", featset, ".*_pt_", focgene, "\\.rds$")
+               feat_file <- feature_set_files[grep(pattern, feature_set_files)]
+               
+               feat_df <- readRDS(feat_file) %>%
+                 mutate(gid = canon_id(gid)) %>%
+                 distinct(gid, .keep_all = TRUE)
+               
+               # Select held out test fold
+               test_set_df <- folds_list[[focgene]] %>% 
+                 filter(fold == "test") %>%
+                 left_join(labels_list[[focgene]], by = "gid") %>% 
+                 left_join(feat_df, by = "gid") %>% 
+                 filter(!is.na(label)) %>%
+                 mutate(across(where(is.numeric), ~ tidyr::replace_na(.x, 0))) # error fixing
+               
+               feats <- model$trainingData %>% select(-any_of(c(".outcome", ".weights"))) %>% names
+               test_set_reduced <- test_set_df[, feats, drop = FALSE]
+               
+               predict_prob_test <- predict(model, newdata=test_set_df, type="prob")
+               
+               # Calculate receiver operating curve
+               ROC = roc(response = test_set_df$label, 
+                         predictor = predict_prob_test$hzoon,
+                         direction = ">") # note that because pROC::roc assumes the FIRST factor level is the control, we want control > cases
+               
+               pred_raw <- data.frame(gid = test_set_df$gid,
+                                      label = test_set_df$label,
+                                      predict_prob_test) %>%
+                 
+                 # Could instead use the threshold determined from the training here
+                 
+                 mutate(pred = factor(ifelse(hzoon > coords(ROC, "best", best.method="closest.topleft")$threshold, "hzoon", "nz"))) 
+               
+               # Save raw predictions per sequence
+               write.csv(pred_raw, file=paste0("S3\\analysis\\pred_raw\\test_pred_raw_", method, "_", featset, "_", focgene, "_", results_date, ".csv"))
+               
+               # Calculate confusion matrix
+               matrix_test <- confusionMatrix(data = pred_raw$pred, 
+                                              reference = pred_raw$label, 
+                                              positive = "hzoon")
+               
+               # Save selected performance metrics
+               line <- data.frame(method = method,
                                  featset = featset,
                                  focgene = focgene, 
                                  threshold = coords(ROC, "best", best.method="closest.topleft")$threshold,
@@ -161,37 +236,11 @@ for(i in 1:length(results_date_list)){
                                  AUC = ROC$auc %>% as.numeric(),
                                  matrix_test$byClass %>% t()) %>%
                  mutate(across(where(is.numeric), round, 3))
-               
-               subtypeacc_reduced <- subtypeacc %>%
-                 group_by(cluster_set, featset, focgene, subtype) %>%
-                 summarise(accuracy = sum(label == pred) / n())
-               
-               result_all[["line"]] <- line
-               result_all[["subtypeacc_reduced"]] <- subtypeacc_reduced
-               return(result_all)
-               
-             }
-  
-  # Save performance metrics calculated individually per held out subtype
-  result_all %>% 
-    unlist(recursive=FALSE) %>% 
-    unlist(recursive=FALSE) %>% 
-    purrr::transpose(.) %>% 
-    extract2("subtypeacc_reduced") %>% 
-    bind_rows() %>%
-    write.table(file=paste0("S3\\analysis\\resultsbysubtype_", results_date_list[i], ".csv"), 
-                sep=',', row.names=F, col.names=T)
-  
-  # Save aggregated performance metrics calculated over all held out subtypes
-  result_all %>% 
-    unlist(recursive=FALSE) %>% 
-    unlist(recursive=FALSE) %>% 
-    purrr::transpose(.) %>% 
-    extract2("line") %>% 
-    bind_rows() %>%
-    write.table(file=paste0("S3\\analysis\\results_", results_date_list[i], ".csv"), 
-                sep=',', row.names=F, col.names=T)
-  
-}
 
-stopCluster(cl)
+               return(line)
+         
+             }
+  result_all %>%
+    write.table(file=paste0("S3\\analysis\\test_results_", results_date, "_", focgene, ".csv"),
+                sep=',', row.names=F, col.names=T)
+}

@@ -8,41 +8,49 @@
 
 library(dplyr)
 library(tidyr)
+library(forcats)
 library(magrittr)
+library(purrr)
 library(ggplot2)
+library(ggdist)
 library(ggrepel)
 library(rentrez)
 library(patchwork)
+library(tidytext)
 
 ############################
 # Load IDs and set options #
 ############################
 
-allflu_wgs_ref <- read.csv("S3\\data\\full\\allflu_wgs_ref.csv")
+results_date <- "17_07_26"
+results_path <- "S3\\analysis\\"
+
+allflu_wgs_ref <- read.csv("S3\\data\\segmentwise\\Raw_Sequences\\allflu_wgs_df.csv", na.strings = "")
+allflu_nuc_ref <- read.csv("S3\\data\\segmentwise\\Raw_Sequences\\allflu_nuc_df.csv", na.strings = "")
+allflu_cds_ref <- read.csv("S3\\data\\segmentwise\\Raw_Sequences\\allflu_cds_df.csv", na.strings = "")
 
 cbbPalette_ordered <- c("#D55E00", "#E69F00", "#F0E442", "#009E73", "#56B4E9", "#0072B2", "#CC79A7", "#999999")
 
-cluster_chosen <- "70_7"
+cbbPalette_12 <- c("#D55E00", "#E69F00", "#F0E442", "#009E73", "#56B4E9", "white", "#0072B2","#DDDDDD", "#999999", "black", "#CC79A7", "#5D3A9B")
 
 ################
 # Data figures #
 ################
 
 # Supplementary Fig S1
-# Sequence representation over time
+# Number of independent genomes represented over time (top 10 subtypes only)
 
 S1 <- allflu_wgs_ref %>%
   mutate(label = case_when(
     label == "nz" ~ "avian",
     label == "zoon" ~ "zoonotic",
   )) %>%  
-  filter(!is.na(date) & date > as.Date("1990-01-01")) %>%
-  add_count(subtype, name = "sub_n") %>%
-  filter(sub_n > 500) %>%
+  filter(!is.na(date) & date > as.Date("2000-01-01")) %>%
+  mutate(subtype = fct_lump_n(factor(subtype), n = 10, other_level = "other")) %>% 
   ggplot(aes(x = as.Date(date), fill = subtype)) +
   geom_histogram(position = "stack", binwidth=365) +
-  scale_fill_manual(values = rev(c(RColorBrewer::brewer.pal(10, "Paired")))) +
-  scale_x_date(limits = c(as.Date("1990-01-01"), as.Date("2022-12-31")), date_labels =  "%Y") +
+  scale_fill_manual(values = c(rev(c(RColorBrewer::brewer.pal(10, "Paired"))), "grey30")) +
+  scale_x_date(limits = c(as.Date("2000-01-01"), as.Date("2026-01-01")), date_labels =  "%Y") +
   facet_grid(rows = vars(label), cols = vars(src), scales = "free_y") +
   theme_bw() +
   xlab("Date") +
@@ -50,31 +58,62 @@ S1 <- allflu_wgs_ref %>%
 
 ggsave("S3\\figures_tables\\time_dist_wgs.png", plot = S1, width = 14, height = 6)
 
+
+# Supplementary Fig SX
+# Sequence representation over time by segment
+
+SX <- allflu_nuc_ref %>%
+  mutate(label = case_when(
+    label == "nz" ~ "avian",
+    label == "zoon" ~ "zoonotic",
+  )) %>%  
+  filter(!is.na(date) & date > as.Date("2000-01-01")) %>%
+  mutate(subtype = fct_lump_n(factor(subtype), n = 10, other_level = "other")) %>% 
+  ggplot(aes(x = as.Date(date), fill = subtype)) +
+  geom_histogram(position = "stack", binwidth=365) +
+  scale_fill_manual(values = c(rev(c(RColorBrewer::brewer.pal(10, "Paired"))), "grey30")) +
+  scale_x_date(limits = c(as.Date("2000-01-01"), as.Date("2026-01-01")), date_labels =  "%Y") +
+  facet_grid(rows = vars(label), cols = vars(gene), scales = "free_y") +
+  theme_bw() +
+  xlab("Date") +
+  ylab("Frequency")
+
+ggsave("S3\\figures_tables\\time_dist_nuc.png", plot = SX, width = 14, height = 3.5)
+
+# Supplementary Fig SXX
+# Cds representation over time by segment UNUSED - VIRTUALLY THE SAME
+
+SXX <- allflu_cds_ref %>%
+  mutate(label = case_when(
+    label == "nz" ~ "avian",
+    label == "zoon" ~ "zoonotic",
+  )) %>%  
+  filter(!is.na(date) & date > as.Date("2000-01-01")) %>%
+  mutate(subtype = fct_lump_n(factor(subtype), n = 10, other_level = "other")) %>% 
+  ggplot(aes(x = as.Date(date), fill = subtype)) +
+  geom_histogram(position = "stack", binwidth=365) +
+  scale_fill_manual(values = c(rev(c(RColorBrewer::brewer.pal(10, "Paired"))), "grey30")) +
+  scale_x_date(limits = c(as.Date("2000-01-01"), as.Date("2026-01-01")), date_labels =  "%Y") +
+  facet_grid(rows = vars(label), cols = vars(gene), scales = "free_y") +
+  theme_bw() +
+  xlab("Date") +
+  ylab("Frequency")
+
+ggsave("S3\\figures_tables\\time_dist_cds.png", plot = SXX, width = 14, height = 3.5)
+
 ##########################################
 # Performance figures: individual models #
 ##########################################
 
 # Performance metrics on holdout sets
 
-results_rf <- read.csv(paste0("S3\\analysis\\results_", "14_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == cluster_chosen) %>% mutate(method = "rf") 
-results_plr <- read.csv(paste0("S3\\analysis\\results_", "15_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == cluster_chosen) %>% mutate(method = "glmnet")
-results_xgb <- read.csv(paste0("S3\\analysis\\results_", "16_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == cluster_chosen) %>% mutate(method = "xgb")
-results_svmlin <- read.csv(paste0("S3\\analysis\\results_", "17_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == cluster_chosen) %>% mutate(method = "svmlin")
-results_svmrad <- read.csv(paste0("S3\\analysis\\results_", "18_02_24", ".csv"), na.strings = "NaN") %>% filter(cluster_set == cluster_chosen) %>% mutate(method = "svm")
-
-all_res <- bind_rows(results_rf,
-                     results_svmlin,
-                     results_svmrad,
-                     results_xgb,
-                     results_plr) 
-
-# Save for reference
-all_res %>% write.csv("S3\\analysis\\results_all_methods.csv")
+results_list <- list.files(path = results_path, pattern = paste0("test_results_", results_date), full.names = TRUE)
+all_res <- map_df(results_list, read.csv, na.strings = "")
 
 # Fig 2
 # AUC heatmap of best model methods
 
-fig_results_heat_AUC_70_7 <- all_res %>%
+fig_results_heat_AUC <- all_res %>%
   group_by(method, featset, focgene) %>%
   summarise(AUC = mean(AUC)) %>% 
   ungroup %>%
@@ -112,17 +151,17 @@ fig_results_heat_AUC_70_7 <- all_res %>%
   xlab("Influenza virus gene/protein") +
   ylab("Feature set")
 
-ggsave("S3\\figures_tables\\all_results_heat_AUC_70_7.png", plot = fig_results_heat_AUC_70_7, width = 15, height = 3)
+ggsave("S3\\figures_tables\\all_results_heat_AUC_segmentwise.png", plot = fig_results_heat_AUC, width = 15, height = 3)
 
 # Supplementary Fig 2
 # AUC heatmap of all model methods
 
-fig_results_heat_AUC_70_7_one <- all_res %>%
+fig_results_heat_AUC_one <- all_res %>%
   group_by(method, featset, focgene) %>%
   summarise(AUC = mean(AUC)) %>% 
   ungroup %>%
   group_by(featset, focgene) %>%
-  slice_max(AUC) %>%
+  slice_max(AUC, with_ties = FALSE) %>%
   ungroup %>%
   mutate(featset = case_when(
     featset == "cds_compbias" ~ "nuc: composition",
@@ -159,12 +198,12 @@ fig_results_heat_AUC_70_7_one <- all_res %>%
   xlab("Influenza virus gene/protein") +
   ylab("Feature set")
 
-ggsave("S3\\figures_tables\\all_results_heat_AUC_70_7_one.png", plot = fig_results_heat_AUC_70_7_one, width = 6, height = 3.5)
+ggsave("S3\\figures_tables\\all_results_heat_AUC_segmentwise_one.png", plot = fig_results_heat_AUC_one, width = 6, height = 3.5)
 
 # Supplementary Fig 3
 # F1 heatmap of all model methods
 
-fig_results_heat_F1_70_7 <- all_res %>%
+fig_results_heat_F1 <- all_res %>%
   group_by(method, featset, focgene) %>%
   summarise(F1 = mean(F1)) %>%
   ungroup %>%
@@ -204,7 +243,105 @@ fig_results_heat_F1_70_7 <- all_res %>%
   xlab("Influenza virus gene/protein") +
   ylab("Feature set")
 
-ggsave("S3\\figures_tables\\all_results_heat_F1_70_7.png", plot = fig_results_heat_F1_70_7, width = 15, height = 3)
+ggsave("S3\\figures_tables\\all_results_heat_F1_70_7.png", plot = fig_results_heat_F1, width = 15, height = 3)
+
+# Test plot Policy Piece
+
+fig_results_bar_AUC <- all_res %>%
+  group_by(method, featset, focgene) %>%
+  summarise(AUC = mean(AUC)) %>% 
+  ungroup %>%
+  mutate(featset = case_when(
+    featset == "cds_compbias" ~ "nuc: composition",
+    featset == "nuc_2mer" ~ "nuc: 2-mers",
+    featset == "nuc_3mer" ~ "nuc: 3-mers",
+    featset == "nuc_4mer" ~ "nuc: 4-mers",
+    featset == "nuc_5mer" ~ "nuc: 5-mers",
+    featset == "nuc_6mer" ~ "nuc: 6-mers",
+    featset == "prot_2mer" ~ "prot: 2-mers",
+    featset == "prot_ctdc" ~ "prot: CTD-C",
+    featset == "prot_ctdt" ~ "prot: CTD-T",
+    featset == "prot_ctdd" ~ "prot: CTD-D",
+    featset == "prot_ctriad" ~ "prot: CTriad",
+    featset == "prot_pseaac" ~ "prot: PseAAC"),
+    featset = as.factor(featset),
+    method = case_when(
+      method == "glmnet" ~ "PLR",
+      method == "rf" ~ "RF",
+      method == "svm" ~ "RSVM",
+      method == "svmlin" ~ "SVM",
+      method == "xgb" ~ "XGB",
+    ),
+    focgene = factor(focgene, levels = c("PB2", "PB1", "PA", "HA", "NP", "NA", "M1", "NS1")),
+    label = paste0(method, ", ", featset),
+  ) %>%
+  gather(metric, value, -method, -featset, -focgene, -label) %>%
+  filter(metric %in% c("AUC")) %>%
+  mutate(value = as.numeric(value)) %>%
+  mutate(focgene = fct_reorder(focgene, value, .fun = max, .desc = TRUE)) %>%
+  group_by(focgene) %>%                            
+  slice_max(order_by = value, n = 5) %>%  # Only plot top 5 models for each segment
+  ggplot(aes(y = reorder_within(label, value, focgene), x = value, fill = featset)) + 
+  geom_bar(alpha = 0.9, color = "black", stat = "identity", show.legend = TRUE) +
+  stat_identity(aes(pch = method, x = value + 0.05), color = "black", size = 4) +
+  scale_shape_manual(values = c(19, 15, 17, 18, 8), guide = "none") + 
+  scale_fill_manual(values = cbbPalette_12) +
+  scale_y_reordered() +
+  facet_wrap(~ focgene, ncol=2, scales = "free_y") +
+  theme_bw() +
+  guides(fill = guide_legend(override.aes = list(shape = NA))) +
+  ylab("Feature set x Model") +
+  xlab("AUC")
+
+ggsave("S3\\figures_tables\\all_results_bar_AUC_segmentwise.png", plot = fig_results_bar_AUC, width = 15, height = 7)
+
+# Identify best models per segment
+
+best_mods <- all_res %>%
+  group_by(method, featset, focgene) %>%
+  summarise(AUC = mean(AUC), threshold = mean(threshold)) %>% 
+  ungroup %>%
+  group_by(focgene) %>%
+  slice_max(AUC, with_ties = FALSE) %>%
+  ungroup
+
+all_pred_raw <- pmap_dfr(
+  best_mods[, c("method", "featset", "focgene", "AUC", "threshold")],
+  function(method, featset, focgene, AUC, threshold) {
+    read.csv(paste0(results_path, "pred_raw\\test_pred_raw_", method, "_", featset, "_", focgene, "_", results_date, ".csv"), na.strings = "") %>% 
+      mutate(focgene = focgene, AUC = AUC, threshold)
+  }
+) %>%
+  select(focgene, AUC, threshold, gid, hzoon, nz, label, pred) %>%
+  left_join(allflu_cds_ref %>% select(gid, subtype) %>% distinct) %>%
+  mutate(focgene = fct_reorder(focgene, AUC, .fun = max, .desc = TRUE)) %>%
+  mutate(label = as.character(label)) %>%
+  mutate(label = case_when(label == "hzoon" ~ "Zoonotic", 
+                           label == "nz" ~ "Avian") %>% as.factor)
+
+fig_results_const_raw <- all_pred_raw %>% 
+  ggplot(aes(x = label, y = hzoon, fill = label)) +
+  geom_dots(data = . %>% filter(label == "Avian"), binwidth = unit(1.5, "mm"),color = "gray30", dotsize = 2, alpha = 0.6, side = "both", overflow = "compress") +
+  geom_dots(data = . %>% filter(label == "Zoonotic"), binwidth = unit(1.5, "mm"), color = "gray30", dotsize = 2, alpha = 0.6, side = "both", overflow = "compress") +
+  # geom_boxplot(color = "black", outliers = FALSE) +
+  # geom_dots(data = . %>% filter(outl), binwidth = unit(3, "mm"), alpha = 0.4, side = "both", overflow = "compress") +
+  #geom_jitter(data = . %>% filter(outl), size = 4, alpha = 0.4, shape = 21, stroke = 1.5, position = position_jitter(width = 0.2, seed = 1649)) +
+  #geom_dotplot(data = . %>% filter(outl), dotsize = 5, alpha = 0.4, binaxis = "y", stackdir = "center",  binwidth = 0.01) +
+  #geom_jitter(alpha = 0.4, position = position_jitter(width = 0.2, seed = 1649)) +
+  geom_hline(aes(yintercept = threshold), linetype = "longdash", color = "gray10",linewidth = 1.2, lwd = 1.2) +
+  theme_bw() +
+  scale_fill_discrete(direction = -1) +
+  scale_color_discrete(direction = -1) +
+  guides(fill = "none") +
+  facet_wrap(~ focgene, ncol=2, scales = "free_y") +
+  ylab("p(zoonotic)") +
+  xlab(NULL) +
+  guides(color = "none")
+
+ggsave("S3\\figures_tables\\all_results_const_raw.png", plot = fig_results_const_raw, width = 10, height = 6)
+
+all_pred_raw %>% select(focgene, gid, subtype, label, hzoon) %>% arrange(focgene, desc(hzoon)) %>% write.csv("S3\\figures_tables\\table_all_pred_raw_best_const_models.csv")
+
 
 #######################################
 # Performance figures: stacked models #

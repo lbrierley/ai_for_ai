@@ -44,16 +44,13 @@ if (!length(varimp_paths)) {
   return(invisible(NULL))
 }
 
-
-## EXACT WEIGHTING TBD
-
-
 # combining all varimp csv and cleaning
 varimp_weights <- varimp_paths %>%
   lapply(read_varimp_file) %>%
   bind_rows() %>%
-  filter(!is.na(importance) & !is.na(feature)) %>%
-  mutate(w = LDATS::softmax(importance)) # Softmax function for weights (new weights sum to 1)
+  mutate(importance = ifelse(importance < 0, 0, importance)) %>% # Set importance to zero if negative (implies that feature for that protein was not at all informative in final model)
+  mutate(w_all = importance/sum(importance)) # Rescale so global weights sum to 1
+
 ################################################################################
 # Function to process weighted log(OR) for one protein
 process_weighted_logOR <- function(protein, feature_type) {
@@ -66,13 +63,22 @@ process_weighted_logOR <- function(protein, feature_type) {
       .[grepl(protein, .)]
     # Clean and transform OR value
     bypos <- feat_ORs %>% purrr::map_dfr(read.csv)
+    # Create shell for every feature-position combination
+    shell <- expand.grid(kmer = read.csv("H:\\Working\\ai_for_ai\\S3/data/full/mapping/prot_feats_ref.csv") %>% pull(x), # features
+                         position = 1:max(bypos$position)) # positions
+    bypos <- bypos %>% right_join(shell, by = c("kmer", "position"))
   } else {
+    
+    ### NOTE THIS DOES NOT INCLUDE ZERO-FEATURES AND ZERO-POSITIONS YET - COULD DO BY LABELLING THEM BY FEATURE_TYPE AND SELECTING THEM BASED ON FEATURE_TYPE DYNAMICALLY
+    
     bypos_csv <- file.path(output_path, protein, "odds_ratio_by_position_with_p.csv")
+    
     if (!file.exists(bypos_csv)) {
       message("Missing OR file for: ", protein)
       return(invisible(NULL))
     }
     bypos <- read_csv(bypos_csv, show_col_types = FALSE)
+    
   }
   bypos <- bypos %>%
     select(kmer, position, odds_ratio) %>%
@@ -84,8 +90,9 @@ process_weighted_logOR <- function(protein, feature_type) {
                            NA_real_, odds_ratio
       )
     ) %>%
-    complete(kmer, position, fill = list(odds_ratio = 1)) %>% # ensure uninformative traits contribute to weighted average
-    mutate(abs_logOR = abs(log(odds_ratio)))
+    complete(kmer, position, fill = list(odds_ratio = 1)) %>% # ensure positions where no odds ratio difference still contribute to weighted average
+    mutate(abs_logOR = abs(log(odds_ratio))) %>%
+    filter(!is.na(position))
   pos_unweighted <- bypos %>%
     group_by(position) %>%
     summarise(
@@ -95,16 +102,18 @@ process_weighted_logOR <- function(protein, feature_type) {
   # Join weight to OR table and compute weighted mean log OR
   bypos_w <- bypos %>%
     left_join(varimp_weights, by = c("kmer" = "feature")) %>%
-    filter(is.finite(abs_logOR))
+    mutate(importance = replace_na(importance, 0),
+           w_all = replace_na(w_all, 0)) %>%  # Set importance/global weight to zero if NA (implies that feature set for that protein was not retained in final model)
+    # WEIGHTING FUNCTION GOES HERE
+    mutate(w_loc =  importance/sum(importance)) # Rescale so global weights sum to 1
   pos_weighted <- bypos_w %>%
     group_by(position) %>%
     summarise(
-      w_sum = sum(w),
-      w_mean_abs_logOR = if_else(w_sum > 0, sum(w * abs_logOR) / w_sum, NA_real_),
+      w_loc_mean_abs_logOR = sum(w_loc * abs_logOR), 
+      w_all_mean_abs_logOR = sum(w_all * abs_logOR),
       .groups = "drop"
     ) %>%
-    filter(!is.na(w_mean_abs_logOR)) %>%
-    select(-w_sum)
+    filter(!is.na(w_loc_mean_abs_logOR))
   if (feature_type == "all_prot") {
     # save both unweighted and weigthed results
     write_csv(pos_unweighted, file.path(paste0(output_path, "/", protein, "_position_mean_abs_logOR.csv")))
@@ -122,7 +131,7 @@ plot_weighted_logOR <- function(
     protein,
     output_path,
     feature_type,
-    vmin = 0.0, vmax = 3.0, center = 1.5,
+    vmin = 0.0,
     fig_width = 12, fig_height = 2, legend_height_cm = 4) {
   # Construct input CSV path
   if (feature_type == "all_prot") {
@@ -138,7 +147,7 @@ plot_weighted_logOR <- function(
   df <- readr::read_csv(csv_path, show_col_types = FALSE) %>%
     dplyr::mutate(
       position = as.integer(position),
-      w_mean_abs_logOR = pmin(pmax(w_mean_abs_logOR, vmin), vmax)
+      plot_value = w_all_mean_abs_logOR,
     ) %>%
     dplyr::arrange(position)
   if (nrow(df) == 0) {
@@ -149,13 +158,12 @@ plot_weighted_logOR <- function(
   all_pos <- seq(min(df$position, na.rm = TRUE), max(df$position, na.rm = TRUE))
   df <- full_join(tibble(position = all_pos), df, by = "position") %>%
     mutate(
-      w_mean_abs_logOR = pmin(pmax(w_mean_abs_logOR, vmin), vmax),
-      w_mean_abs_logOR = ifelse(is.na(w_mean_abs_logOR), vmin, w_mean_abs_logOR)
+      plot_value = ifelse(is.na(plot_value), vmin, plot_value)
     )
   # Generate x-axis ticks
   xticks <- scales::pretty_breaks(n = 10)(range(df$position, na.rm = TRUE))
   # Build plot
-  p <- ggplot(df, aes(x = position, y = 1, fill = w_mean_abs_logOR)) +
+  p <- ggplot(df, aes(x = position, y = 1, fill = plot_value)) +
     geom_tile(height = 1) +
     scale_fill_viridis_c(
       begin = 0,
@@ -201,8 +209,164 @@ plot_weighted_logOR <- function(
   invisible(p)
 }
 
+# function for plot all proteins
+plot_weighted_logOR_allprot <- function(
+    output_path,
+    feature_type,
+    vmin = 0.0) {
+  prot_dfs <- list()
+  # Construct input list
+  for (i in 1:length(proteins)){
+    # Construct input CSV path
+    if (feature_type == "all_prot") {
+      prot_dfs[[i]] <- read.csv(file.path(paste0(output_path, "/", proteins[i], "_position_weighted_mean_abs_logOR.csv"))) %>%
+        mutate(prot = proteins[i])
+    } else {
+      csv_path <- file.path(paste0(output_path, "/", proteins[i], "/", proteins[i], "_position_weighted_mean_abs_logOR.csv")) %>%
+        mutate(prot = proteins[i])
+    }
+    
+  }
+  df <- bind_rows(prot_dfs) %>%
+    dplyr::mutate(
+      position = as.integer(position),
+      plot_value = w_all_mean_abs_logOR,
+    ) %>%
+    dplyr::arrange(position)
+  # Fill missing positions with vmin
+  all_pos <- seq(min(df$position, na.rm = TRUE), max(df$position, na.rm = TRUE))
+  df <- full_join(tibble(position = all_pos), df, by = "position") %>%
+    mutate(
+      plot_value = ifelse(is.na(plot_value), vmin, plot_value)
+    )
+  # Build plot
+  p <- ggplot(df, aes(x = position, y = 1, fill = plot_value)) +
+    geom_tile(height = 1) +
+    scale_fill_viridis_c(
+      begin = 0,
+      end = 1,
+      # limits = c(0, 1),
+      # oob = scales::squish,
+      option = "inferno",
+      name = "importance index (weighted mean abs log-OR)"
+    ) +
+    scale_x_continuous(expand = c(0, 0)) +
+    scale_y_continuous(breaks = NULL, labels = NULL, expand = c(0, 0)) +
+    labs(
+      x = "Residue", y = NULL,
+    ) +
+    facet_wrap(vars(prot), scales = "free", nrow = 8) +
+    theme_minimal(base_size = 8) +
+    theme(
+      panel.grid = element_blank(),
+      panel.background = element_rect(fill = "white", colour = NA),
+      plot.background = element_rect(fill = "white", colour = NA),
+      legend.background = element_rect(fill = "white", colour = NA),
+      legend.title = element_text(angle = 90, size = 6),
+      axis.title.x = element_text(face = "bold"),
+      plot.margin = margin(6, 10, 6, 6),
+      legend.position = "left"
+    ) +
+    guides(
+      fill = guide_colorbar(
+        title.position = "left",
+        barheight = unit(10, "cm"),
+        barwidth = unit(6, "pt"),
+        ticks = TRUE
+      )
+    )
+  # Save plot
+  if (feature_type == "all_prot") {
+    out_path <- file.path(paste0(output_path, "/weighted_mean_heatmap_", feature_type, "_all.png"))
+  } else {
+    out_path <- file.path(paste0(output_path, "/", protein, "/weighted_mean_heatmap_", feature_type, "_all.png"))
+  }
+  ggsave(filename = out_path, plot = p, width = 5, height = 5.5, dpi = 300, bg = "white")
+  invisible(p)
+}
+
+# function for plot all proteins (unweighted, for reference only)
+plot_unweighted_logOR_allprot <- function(
+    output_path,
+    feature_type,
+    vmin = 0.0) {
+  prot_dfs <- list()
+  # Construct input list
+  for (i in 1:length(proteins)){
+    # Construct input CSV path
+    if (feature_type == "all_prot") {
+      prot_dfs[[i]] <- read.csv(file.path(paste0(output_path, "/", proteins[i], "_position_mean_abs_logOR.csv"))) %>%
+        mutate(prot = proteins[i])
+    } else {
+      csv_path <- file.path(paste0(output_path, "/", proteins[i], "/", proteins[i], "_position_mean_abs_logOR.csv")) %>%
+        mutate(prot = proteins[i])
+    }
+    
+  }
+  df <- bind_rows(prot_dfs) %>%
+    dplyr::mutate(
+      position = as.integer(position),
+      plot_value = mean_abs_logOR,
+    ) %>%
+    dplyr::arrange(position)
+  # Fill missing positions with vmin
+  all_pos <- seq(min(df$position, na.rm = TRUE), max(df$position, na.rm = TRUE))
+  df <- full_join(tibble(position = all_pos), df, by = "position") %>%
+    mutate(
+      plot_value = ifelse(is.na(plot_value), vmin, plot_value)
+    )
+  # Build plot
+  p <- ggplot(df, aes(x = position, y = 1, fill = plot_value)) +
+    geom_tile(height = 1) +
+    scale_fill_viridis_c(
+      begin = 0,
+      end = 1,
+      # limits = c(0, 1),
+      # oob = scales::squish,
+      option = "inferno",
+      name = "importance index (mean abs log-OR)"
+    ) +
+    scale_x_continuous(expand = c(0, 0)) +
+    scale_y_continuous(breaks = NULL, labels = NULL, expand = c(0, 0)) +
+    labs(
+      x = "Residue", y = NULL,
+    ) +
+    facet_wrap(vars(prot), scales = "free", nrow = 8) +
+    theme_minimal(base_size = 8) +
+    theme(
+      panel.grid = element_blank(),
+      panel.background = element_rect(fill = "white", colour = NA),
+      plot.background = element_rect(fill = "white", colour = NA),
+      legend.background = element_rect(fill = "white", colour = NA),
+      legend.title = element_text(angle = 90, size = 6),
+      axis.title.x = element_text(face = "bold"),
+      plot.margin = margin(6, 10, 6, 6),
+      legend.position = "left"
+    ) +
+    guides(
+      fill = guide_colorbar(
+        title.position = "left",
+        barheight = unit(10, "cm"),
+        barwidth = unit(6, "pt"),
+        ticks = TRUE
+      )
+    )
+  # Save plot
+  if (feature_type == "all_prot") {
+    out_path <- file.path(paste0(output_path, "/unweighted_mean_heatmap_", feature_type, "_all.png"))
+  } else {
+    out_path <- file.path(paste0(output_path, "/", protein, "/unweighted_mean_heatmap_", feature_type, "_all.png"))
+  }
+  ggsave(filename = out_path, plot = p, width = 5, height = 5.5, dpi = 300, bg = "white")
+  invisible(p)
+}
+
 # Loop through all proteins folders
 for (protein in proteins) {
   process_weighted_logOR(protein, feat)
   plot_weighted_logOR(protein, output_path, feat)
 }
+
+# Plot all in one
+plot_weighted_logOR_allprot(output_path, feat)
+plot_unweighted_logOR_allprot(output_path, feat)
